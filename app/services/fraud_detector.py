@@ -1,9 +1,8 @@
 from app.models.fraud import FraudLog
 from app.models.stock import StockPrice
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import numpy as np
-
 
 def determine_risk_level(risk_score: float) -> str:
     if risk_score >= 80:
@@ -14,16 +13,14 @@ def determine_risk_level(risk_score: float) -> str:
         return "Low"
 
 
-def get_fraud_logs(db: Session, stock_id: Optional[int] = None) -> List[FraudLog]:
-
+def get_fraud_logs_service(db: Session, stock_id: Optional[int] = None) -> List[FraudLog]:
     query = db.query(FraudLog)
     if stock_id:
         query = query.filter(FraudLog.stock_id == stock_id)
-    return query.all()
+    return query.order_by(FraudLog.created_at.desc()).all()
 
 
-def detect_fraud(db: Session, stock_id: int, user_id: int) -> FraudLog:
-
+def detect_fraud_service(db: Session, stock_id: int, user_id: int) -> Tuple[Optional[FraudLog], str]:
     prices = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)
@@ -32,7 +29,7 @@ def detect_fraud(db: Session, stock_id: int, user_id: int) -> FraudLog:
         .all()
     )
     if not prices:
-        return None
+        return None, "Low"
 
     risk_score = 0
     reason = []
@@ -44,20 +41,14 @@ def detect_fraud(db: Session, stock_id: int, user_id: int) -> FraudLog:
             reason.append("Price spike detected")
 
         volume_change = (prices[0].volume or 0) - (prices[1].volume or 0)
-        if (
-            prices[1].volume and volume_change / prices[1].volume > 2
-        ):  # 거래량 2배 이상 증가
+        if prices[1].volume and volume_change / prices[1].volume > 2:
             risk_score += 50
             reason.append("Volume spike detected")
 
-    # 평균 가격 및 평균 거래량 계산
     average_price = np.mean([p.price for p in prices])
     average_volume = np.mean([p.volume or 0 for p in prices])
-
-    # 위험 수준 계산
     risk_level = determine_risk_level(risk_score)
 
-    # FraudLog 저장
     fraud_log = FraudLog(
         user_id=user_id,
         stock_id=stock_id,

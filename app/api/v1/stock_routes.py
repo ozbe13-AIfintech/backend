@@ -2,20 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db.session import get_db
-from app.models.stock import Stock, StockReview
-from app.models.user import User
 from app.schemas.stock import (
     CountryResponse,
     MarketResponse,
     SectorResponse,
     StockResponse,
     StockReviewResponse,
-
     StockSchema,
     StockReviewCreate,
 )
 from app.services import stock
 from app.core.security import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -47,68 +45,29 @@ def list_stocks(
 
 @router.get("/{stock_id}/graph")
 def stock_graph_data(stock_id: int, db: Session = Depends(get_db)):
-
-    prices = stock.get_stock_prices(db, stock_id)
-    if not prices:
-        raise HTTPException(status_code=404, detail="Stock prices not found")
-
-    graph_data = {
-        "dates": [p.recorded_at.isoformat() for p in prices],
-        "prices": [p.price for p in prices],
-        "open": [p.open for p in prices],
-        "high": [p.high for p in prices],
-        "low": [p.low for p in prices],
-        "close": [p.close for p in prices],
-        "volume": [p.volume for p in prices],
-        "market_cap": [p.market_cap for p in prices],
-        "market_index": [p.market_index for p in prices],
-        "market_index_change": [p.market_index_change for p in prices],
-    }
-
-    return graph_data
+    return stock.get_stock_graph(db, stock_id)
 
 
 @router.get("/{stock_id}/predict")
 def stock_predict(stock_id: int, db: Session = Depends(get_db)):
-    result = stock.predict_stock(db, stock_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Not enough data for prediction")
-    return result
+    return stock.predict_stock(db, stock_id)
 
 
 @router.get("/{stock_id}/reviews", response_model=List[StockReviewResponse])
 def get_stock_reviews(stock_id: int, db: Session = Depends(get_db)):
-    reviews = db.query(StockReview).filter(StockReview.stock_id == stock_id).all()
-    if not reviews:
-        raise HTTPException(status_code=404, detail="No reviews found")
-    return reviews
+    return stock.get_stock_reviews(db, stock_id)
 
 
 @router.post("/{stock_id}/reviews", response_model=StockReviewResponse)
-def create_stock_review(
+def create_review(
     stock_id: int,
     data: StockReviewCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stock_obj = db.query(Stock).filter(Stock.id == stock_id).first()
-    if not stock_obj:
-        raise HTTPException(status_code=404, detail="Stock not found")
-
-    review = StockReview(stock_id=stock_id, content=data.content, rating=data.rating)
-    db.add(review)
-    db.commit()
-    db.refresh(review)
-    return review
-
-
+    return stock.create_review(db, stock_id, data, current_user)
 
 
 @router.get("/search", response_model=List[StockSchema])
 def search_stocks(query: str = Query(..., min_length=1), db: Session = Depends(get_db)):
-    results = (
-        db.query(stock)
-        .filter((stock.name.ilike(f"%{query}%")) | (stock.ticker.ilike(f"%{query}%")))
-        .all()
-    )
-    return results
+    return stock.search_stocks(db, query)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -11,13 +11,12 @@ router = APIRouter()
 
 @router.post("/", response_model=TradeSchema)
 def create_trade_route(
-    user_id: int, stock_id: int, quantity: int, db: Session = Depends(get_db)
+    user_id: int,
+    stock_id: int,
+    quantity: int,
+    db: Session = Depends(get_db)
 ):
-    try:
-        trade = create_trade(db, user_id, stock_id, quantity)
-        return trade
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return create_trade(db, user_id, stock_id, quantity)
 
 
 @router.get("/{user_id}", response_model=List[TradeSchema])
