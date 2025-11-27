@@ -6,6 +6,7 @@ from app.api.v1 import index_routes
 from app.api.v1 import payment_routes
 from app.api.v1 import sentiment_routes
 from app.api.v1 import trade_routes
+from app.api.v1.ai_trading_routes import router as ai_trading_routes
 
 app = FastAPI(title="AI FinTech API")
 app.include_router(user_routes.router, prefix="/api/v1/users", tags=["Users"])
@@ -17,7 +18,7 @@ app.include_router(
     sentiment_routes.router, prefix="/api/v1/sentiment", tags=["Sentiment"]
 )
 app.include_router(trade_routes.router, prefix="/api/v1/trades", tags=["Trades"])
-
+app.include_router(ai_trading_routes)
 
 @app.get("/")
 def root():

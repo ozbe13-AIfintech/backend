@@ -10,7 +10,7 @@ from app.schemas.stock import (
     SectorResponse,
     StockResponse,
     StockReviewResponse,
-    SocialSentimentResponse,
+
     StockSchema,
     StockReviewCreate,
 )
@@ -102,12 +102,6 @@ def create_stock_review(
     return review
 
 
-@router.get("/{stock_id}/related_news", response_model=List[SocialSentimentResponse])
-def related_news(stock_id: int, db: Session = Depends(get_db)):
-    news = stock.get_social_sentiments(db, stock_id)
-    if not news:
-        raise HTTPException(status_code=404, detail="No related news found")
-    return news
 
 
 @router.get("/search", response_model=List[StockSchema])
