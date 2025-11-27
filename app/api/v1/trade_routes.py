@@ -5,7 +5,7 @@ from typing import List
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.trade import TradeResponse, TradeHistoryResponse, Trade
-from app.services import trade as trade_service
+from app.services import trade_executor as trade_service
 from app.core.security import get_current_user
 
 router = APIRouter()

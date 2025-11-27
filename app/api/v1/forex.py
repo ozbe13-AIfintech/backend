@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 from app.services.forex import get_exchange_rate
 from app.schemas.forex import ExchangeRateResponse
 
-router = APIRouter(prefix="/forex", tags=["Forex"])
+router = APIRouter()
 
 @router.get("/", response_model=ExchangeRateResponse)
 def exchange_rate(

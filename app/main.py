@@ -1,3 +1,5 @@
+from sys import prefix
+
 from fastapi import FastAPI
 from app.api.v1 import user_routes
 from app.api.v1 import stock_routes
@@ -7,6 +9,8 @@ from app.api.v1 import payment_routes
 from app.api.v1 import sentiment_routes
 from app.api.v1 import trade_routes
 from app.api.v1.ai_trading_routes import router as ai_trading_routes
+from app.api.v1 import news
+from app.api.v1 import forex
 
 app = FastAPI(title="AI FinTech API")
 app.include_router(user_routes.router, prefix="/api/v1/users", tags=["Users"])
@@ -19,6 +23,8 @@ app.include_router(
 )
 app.include_router(trade_routes.router, prefix="/api/v1/trades", tags=["Trades"])
 app.include_router(ai_trading_routes)
+app.include_router(news.router, prefix="/api/v1/news", tags=["News"])
+app.include_router(forex.router, prefix="/api/v1/forex", tags=["Forex"])
 
 @app.get("/")
 def root():

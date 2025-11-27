@@ -9,12 +9,9 @@ stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 
 def create_payment_intent(amount: float, currency: str = "usd") -> str:
-    """
-    Stripe 결제 Intent 생성 후 client_secret 반환
-    """
     try:
         intent = stripe.PaymentIntent.create(
-            amount=int(amount * 100),  # 센트 단위
+            amount=int(amount * 100),
             currency=currency,
             payment_method_types=["card"],
         )
@@ -26,22 +23,19 @@ def create_payment_intent(amount: float, currency: str = "usd") -> str:
 
 
 def handle_webhook_event(event: dict, db: Session):
-    """
-    Stripe 웹훅 이벤트 처리
-    성공한 결제는 여기서 DB 업데이트 가능
-    """
+
     event_type = event.get("type")
     data = event.get("data", {}).get("object", {})
 
     if event_type == "payment_intent.succeeded":
-        # 예: 유저 ID를 metadata로 전달했다고 가정
+
         user_id = data.get("metadata", {}).get("user_id")
         amount_received = data.get("amount_received", 0) / 100  # 달러로 변환
 
         if user_id:
             user = db.query(User).filter(User.id == int(user_id)).first()
             if user:
-                # 예시: 유저 balance 충전
+
                 user.balance = getattr(user, "balance", 0) + amount_received
                 db.commit()
 
