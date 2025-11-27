@@ -94,3 +94,12 @@ def update_user_profile(
 def get_user_wishlist(user_id: int, db: Session = Depends(get_db)):
     wishlist = user_service.get_wishlist(db, user_id)
     return WishlistResponse(user_id=user_id, wishlist=wishlist)
+
+@router.get("/{user_id}", summary="Get user profile")
+def get_user_profile(user_id: int, db: Session = Depends(get_db)):
+    return user_service.get_user_profile(db, user_id)
+
+
+@router.delete("/{user_id}/wishlist/{stock_id}", summary="Remove item from wishlist")
+def remove_wishlist_item(user_id: int, stock_id: int, db: Session = Depends(get_db)):
+    return user_service.remove_wishlist_item(db, user_id, stock_id)

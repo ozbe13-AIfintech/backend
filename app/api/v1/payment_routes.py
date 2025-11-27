@@ -22,9 +22,7 @@ def create_payment(payment: PaymentCreate):
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
-    """
-    Stripe 웹훅 이벤트 수신
-    """
+
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")

@@ -137,6 +137,18 @@ def get_wishlist(db: Session, user_id: int):
         {"stock_id": i.stock_id, "stock_name": i.stock.name}
         for i in items
     ]
+def remove_wishlist_item(db: Session, user_id: int, stock_id: int):
+    item = db.query(UserWishlist).filter(
+        UserWishlist.user_id == user_id,
+        UserWishlist.stock_id == stock_id
+    ).first()
+
+    if not item:
+        raise HTTPException(404, "Wishlist item not found")
+
+    db.delete(item)
+    db.commit()
+    return {"msg": "Item removed from wishlist"}
 
 
 
@@ -163,3 +175,18 @@ def update_user_profile(
     db.refresh(current_user)
 
     return current_user
+def get_user_profile(db: Session, user_id: int):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    return {
+        "id": user.id,
+        "phone": user.phone,
+        "nickname": user.nickname,
+        "balance": user.balance,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+        "identity_verified": user.identity_verification.status
+        if user.identity_verification else "unverified"
+    }

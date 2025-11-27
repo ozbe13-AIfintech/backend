@@ -70,18 +70,13 @@ def get_stock_graph(db: Session, stock_id: int):
     }
 
 
-### =====================
-###  예측 관련
-### =====================
 def llm_predict(price_list: list):
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
     prompt = f"""
     최근 30일의 종가 데이터:
     {price_list}
     다음 날 종가를 예측해 숫자만 출력.
     """
-
     response = requests.post(
         "https://api.openai.com/v1/chat/completions",
         headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
@@ -90,16 +85,14 @@ def llm_predict(price_list: list):
             "messages": [{"role": "user", "content": prompt}],
         },
     )
-
     output = response.json()["choices"][0]["message"]["content"]
-
     try:
         return float(output.replace(",", "").replace("원", "").strip())
     except:
         return None
 
 
-def predict_stock(db: Session, stock_id: int):
+def predict_stock(db: Session, stock_id: int, use_post: bool = False):
     prices = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)
@@ -107,28 +100,66 @@ def predict_stock(db: Session, stock_id: int):
         .limit(30)
         .all()
     )
-
     if not prices:
         raise HTTPException(404, "Not enough data for prediction")
 
     price_list = [p.price for p in prices][::-1]
-
     prediction = llm_predict(price_list)
-
     if prediction is None:
         raise HTTPException(500, "Prediction failed")
 
+
+    if use_post:
+        stock_pred = StockPrediction(
+            stock_id=stock_id,
+            predicted_price=prediction,
+            model_name="openai_gpt4",
+            created_at=datetime.utcnow()
+        )
+        db.add(stock_pred)
+        db.commit()
+        db.refresh(stock_pred)
+
     return {
         "prediction": float(prediction),
-        "confidence": None,
         "model_name": "openai_gpt4",
         "created_at": datetime.utcnow(),
     }
 
 
-### =====================
-###  리뷰
-### =====================
+def get_top_gainers(db: Session, limit: int = 10):
+    stocks = db.query(Stock).all()
+    gainers = []
+
+    for stock in stocks:
+        prices = (
+            db.query(StockPrice)
+            .filter(StockPrice.stock_id == stock.id)
+            .order_by(StockPrice.recorded_at.desc())
+            .limit(2)
+            .all()
+        )
+        if len(prices) < 2:
+            continue
+
+        latest = prices[0]
+        previous = prices[1]
+
+        if previous.price == 0:
+            continue
+
+        gain_percent = (latest.price - previous.price) / previous.price * 100
+        gainers.append({
+            "stock_id": stock.id,
+            "name": stock.name,
+            "gain_percent": gain_percent
+        })
+
+
+    top = sorted(gainers, key=lambda x: x["gain_percent"], reverse=True)[:limit]
+    return top
+
+
 def get_stock_reviews(db: Session, stock_id: int):
     return db.query(StockReview).filter(StockReview.stock_id == stock_id).all()
 
@@ -137,29 +168,26 @@ def create_review(db: Session, stock_id: int, data: StockReviewCreate, current_u
     stock_obj = db.query(Stock).filter(Stock.id == stock_id).first()
     if not stock_obj:
         raise HTTPException(404, "Stock not found")
-
     review = StockReview(
         stock_id=stock_id,
         content=data.content,
         rating=data.rating,
         user_id=current_user.id
     )
-
     db.add(review)
     db.commit()
     db.refresh(review)
     return review
 
 
-### =====================
-###  검색 기능
-### =====================
-def search_stocks(db: Session, query: str):
+
+def search_stocks(db: Session, query: str, skip: int = 0, limit: int = 50):
     return (
         db.query(Stock)
         .filter(
-            (Stock.name.ilike(f"%{query}%"))
-            | (Stock.ticker.ilike(f"%{query}%"))
+            (Stock.name.ilike(f"%{query}%")) | (Stock.ticker.ilike(f"%{query}%"))
         )
+        .offset(skip)
+        .limit(limit)
         .all()
     )

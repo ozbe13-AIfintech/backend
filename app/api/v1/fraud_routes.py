@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.db.session import get_db
 from app.schemas.fraud import FraudLogResponse
-from app.services.fraud_service import get_fraud_logs_service, detect_fraud_service
+from app.services.fraud_detector import get_fraud_logs_service, detect_fraud_service
 
 router = APIRouter(tags=["Fraud"])
 

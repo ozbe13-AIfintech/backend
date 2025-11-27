@@ -15,9 +15,7 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 okt = Okt()
 
 
-# ------------------------------
-#  감성 분석 핵심 로직
-# ------------------------------
+
 def analyze_sentiment_ko(text: str) -> float:
     pos_words = ["좋다", "상승", "강세", "추천", "수익"]
     neg_words = ["나쁘다", "하락", "약세", "손실", "위험"]
@@ -38,9 +36,7 @@ def analyze_sentiment_ko(text: str) -> float:
     return score
 
 
-# ------------------------------
-# 뉴스 수집
-# ------------------------------
+
 def fetch_news_for_stock(stock_name: str):
     url = f"https://newsapi.org/v2/everything?q={stock_name}&language=ko&apiKey={NEWS_API_KEY}"
     res = requests.get(url)
@@ -55,9 +51,7 @@ def fetch_news_for_stock(stock_name: str):
     ]
 
 
-# ------------------------------
-# 감성 분석 + 저장
-# ------------------------------
+
 def save_social_sentiment(db: Session, stock_id: int, content: str, source: str):
     score = analyze_sentiment_ko(content)
 
@@ -93,9 +87,7 @@ def fetch_and_save_sentiment_service(db: Session, stock_id: int, stock_name: str
     return saved
 
 
-# ------------------------------
-# 감성 추세 분석
-# ------------------------------
+
 def sentiment_trend_service(db: Session, stock_id: int):
     sentiments = db.query(SocialSentiment).filter(
         SocialSentiment.stock_id == stock_id

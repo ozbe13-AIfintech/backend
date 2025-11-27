@@ -83,6 +83,7 @@ class StockReviewResponse(BaseModel):
 
 
 class SocialSentimentResponse(BaseModel):
+    id: int
     source: Optional[str]
     sentiment_score: Optional[float]
     content: Optional[str]
@@ -90,6 +91,7 @@ class SocialSentimentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 
 class FraudLogResponse(BaseModel):
