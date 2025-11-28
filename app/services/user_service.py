@@ -53,9 +53,9 @@ def login(db: Session, data: LoginRequest):
     if not user or not security.verify_password(data.password, user.hashed_password):
         raise HTTPException(401, "Invalid credentials")
 
-
     access_token = security.create_access_token(user.id)
     refresh_token = security.create_refresh_token(user.id)
+
 
     return {
         "access_token": access_token,
@@ -63,6 +63,7 @@ def login(db: Session, data: LoginRequest):
         "nickname": user.nickname,
         "user_id": user.id,
     }
+
 
 
 def send_otp(db: Session, user_id: int):

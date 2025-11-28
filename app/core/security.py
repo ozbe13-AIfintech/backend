@@ -13,6 +13,9 @@ from app.core.config import settings
 
 
 
+BCRYPT_MAX_LENGTH = 72
+
+
 ALGORITHM = "HS256"
 ACCESS_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_EXPIRE_DAYS = 14
@@ -23,13 +26,11 @@ security_scheme = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(password[:BCRYPT_MAX_LENGTH])
 
-
-def verify_password(plain_password: str, hashed: str) -> bool:
-    return pwd_context.verify(plain_password, hashed)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password[:BCRYPT_MAX_LENGTH], hashed_password)
 
 
 def create_access_token(user_id: int):

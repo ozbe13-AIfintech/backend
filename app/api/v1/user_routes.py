@@ -36,9 +36,21 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
-    token, nickname = user_service.login(db, data)
-    return TokenResponse(token=token, nickname=nickname)
 
+    login_response = user_service.login(db, data)
+
+
+    access_token = login_response.get("access_token")
+    refresh_token = login_response.get("refresh_token")
+    nickname = login_response.get("nickname")
+    user_id = login_response.get("user_id")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        nickname=nickname,
+        user_id=user_id
+    )
 
 
 @router.post("/{user_id}/send_otp", response_model=MessageResponse)

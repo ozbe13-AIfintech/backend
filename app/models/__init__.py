@@ -1,8 +1,7 @@
+from .user import *
+from .trade import *
+from .stock import *
+from .index import *
+from .fraud import *
 
-
-from .stock import Stock
-from .user import User,UserWishlist
-from .trade import Trade
-from .fraud import FraudLog
-from .index import Index
 

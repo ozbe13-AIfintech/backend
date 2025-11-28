@@ -1,18 +1,8 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Boolean,
-    Date,
-    DateTime,
-    ForeignKey,
-    Float,
-)
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String, Boolean,Date, Float, DateTime,ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.session import Base
+from sqlalchemy.sql import func
+from app.db.base import Base
 from datetime import datetime
-
 
 class User(Base):
     __tablename__ = "users"
@@ -21,13 +11,12 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     nickname = Column(String(50), unique=True, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
     balance = Column(Float, default=0.0)
-    identity_verification = relationship(
-        "IdentityVerification", uselist=False, back_populates="user"
-    )
-    trades = relationship("Trade", back_populates="user")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    identity_verification = relationship("IdentityVerification", uselist=False, back_populates="user")
     assets = relationship("UserAsset", back_populates="user")
+    trades = relationship("Trade", back_populates="user")
     wishlist = relationship("UserWishlist", back_populates="user")
 
 
@@ -45,6 +34,7 @@ class IdentityVerification(Base):
     status = Column(String(20), default="pending")
     verified_at = Column(DateTime)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
     user = relationship("User", back_populates="identity_verification")
 
 

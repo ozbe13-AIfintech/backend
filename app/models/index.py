@@ -8,7 +8,7 @@ index_component = Table(
     "index_component",
     Base.metadata,
     Column("index_id", Integer, ForeignKey("index.id"), primary_key=True),
-    Column("stock_id", Integer, ForeignKey("stock.id"), primary_key=True),
+    Column("stock_id", Integer, ForeignKey("stocks.id"), primary_key=True),
     Column("weight", Float),
 )
 
@@ -18,7 +18,7 @@ class Index(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    market_id = Column(Integer, ForeignKey("market.id"))
+    market_id = Column(Integer, ForeignKey("markets.id"))
 
     values = relationship("IndexValue", back_populates="index")
     components = relationship(

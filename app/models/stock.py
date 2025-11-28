@@ -57,7 +57,7 @@ class Stock(Base):
     predictions = relationship("StockPrediction", back_populates="stock")
     reviews = relationship("StockReview", back_populates="stock")
     sentiments = relationship("SocialSentiment", back_populates="stock")
-
+    fraud_logs = relationship("FraudLog", back_populates="stock")
 
 class StockPrice(Base):
     __tablename__ = "stock_prices"
