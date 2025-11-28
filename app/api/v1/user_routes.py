@@ -11,6 +11,7 @@ from app.schemas.user import (
     TokenResponse,
     MessageResponse,
     WishlistResponse,
+    WishlistAddRequest
 )
 from app.models.user import User
 
@@ -63,15 +64,18 @@ def verify_identity(
     user_service.verify_identity(db, user_id, data.real_name, data.birth_date)
     return MessageResponse(msg="Identity verified")
 
+@router.post("/refresh")
+def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+    return user_service.refresh_access_token(refresh_token)
+
 
 @router.post("/wishlist", response_model=WishlistResponse)
-def add_to_wishlist(user_id: int, stock_id: int, db: Session = Depends(get_db)):
-    wishlist = user_service.add_wishlist(db, user_id, stock_id)
+def add_to_wishlist(data: WishlistAddRequest, db: Session = Depends(get_db)):
+    wishlist = user_service.add_wishlist(db, data.user_id, data.stock_id)
     return WishlistResponse(
-        user_id=user_id,
+        user_id=data.user_id,
         wishlist=wishlist
     )
-
 
 
 @router.put("/{user_id}", response_model=UserResponse)

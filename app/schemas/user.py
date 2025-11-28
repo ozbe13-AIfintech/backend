@@ -30,9 +30,6 @@ class UserResponse(BaseModel):
     phone: str
 
 
-class TokenResponse(BaseModel):
-    token: str
-    nickname: str
 
 
 class MessageResponse(BaseModel):
@@ -69,3 +66,13 @@ class WishlistItem(BaseModel):
 class WishlistResponse(BaseModel):
     user_id: int
     wishlist: List[WishlistItem]
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    nickname: str
+    user_id: int
+
+class WishlistAddRequest(BaseModel):
+    user_id: int
+    stock_id: int

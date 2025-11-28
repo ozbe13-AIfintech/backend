@@ -10,7 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from app.db.base import Base
+from app.db.session import Base
 from datetime import datetime
 
 
@@ -53,7 +53,7 @@ class UserWishlist(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    stock_id = Column(Integer, ForeignKey("stock.id"))
+    stock_id = Column(Integer, ForeignKey("stocks.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="wishlist")

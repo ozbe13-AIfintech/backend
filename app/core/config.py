@@ -1,3 +1,4 @@
+
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -5,6 +6,8 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
+    JWT_SECRET_KEY: str = "super-secret-key"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     DATABASE_URL: str
     SYNC_DATABASE_URL: str = None
@@ -17,10 +20,10 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = None
     CELERY_RESULT_BACKEND: str = None
 
-    SECRET_KEY: str = "supersecret"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-
-    model_config = {"env_file": ".env", "extra": "allow"}
+    model_config = {
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 settings = Settings()

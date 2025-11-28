@@ -53,9 +53,16 @@ def login(db: Session, data: LoginRequest):
     if not user or not security.verify_password(data.password, user.hashed_password):
         raise HTTPException(401, "Invalid credentials")
 
-    token = security.create_jwt(user.id)
-    return token, user.nickname
 
+    access_token = security.create_access_token(user.id)
+    refresh_token = security.create_refresh_token(user.id)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "nickname": user.nickname,
+        "user_id": user.id,
+    }
 
 
 def send_otp(db: Session, user_id: int):
@@ -118,6 +125,16 @@ def verify_identity(db: Session, user_id: int, real_name: str, birth_date,):
     db.add(iv)
     db.commit()
     db.refresh (iv)
+def refresh_access_token(refresh_token: str):
+    payload = security.decode_token(refresh_token)
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=400, detail="Invalid refresh token")
+
+    user_id = int(payload["sub"])
+    new_access_token = security.create_access_token(user_id)
+
+    return {"access_token": new_access_token}
 
 
 def add_wishlist(db: Session, user_id: int, stock_id: int):
