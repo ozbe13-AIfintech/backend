@@ -2,11 +2,11 @@ import random
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-
+import os
 from app.models.user import User, IdentityVerification, UserWishlist
 from app.core import security
 from app.schemas.user import SignupRequest, LoginRequest, UserUpdateRequest
-
+from twilio.rest import Client
 
 
 ANT_NAMES = [
@@ -66,13 +66,13 @@ def login(db: Session, data: LoginRequest):
 
 
 
+
 def send_otp(db: Session, user_id: int):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
 
     iv = user.identity_verification or IdentityVerification(user_id=user.id)
-
     iv.phone_code = generate_otp()
     iv.phone_attempt = 0
     iv.phone_expires = datetime.utcnow() + timedelta(minutes=5)
@@ -80,9 +80,21 @@ def send_otp(db: Session, user_id: int):
     db.add(iv)
     db.commit()
 
-
     print(f"DEBUG OTP for {user.phone} = {iv.phone_code}")
 
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER")
+
+    if not all([account_sid, auth_token, from_number]):
+        raise HTTPException(500, "Twilio credentials not configured")
+
+    client = Client(account_sid, auth_token)
+    client.messages.create(
+        body=f"인증 코드: {iv.phone_code}",
+        from_=from_number,
+        to=user.phone
+    )
 
 
 def verify_otp(db: Session, user_id: int, code: str):

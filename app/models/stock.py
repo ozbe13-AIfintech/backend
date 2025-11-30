@@ -73,6 +73,8 @@ class StockPrice(Base):
     market_index = Column(Float)
     market_index_change = Column(Float)
     recorded_at = Column(DateTime, nullable=False)
+
+
     stock = relationship("Stock", back_populates="prices")
 
 

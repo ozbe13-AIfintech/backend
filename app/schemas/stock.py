@@ -31,9 +31,14 @@ class SectorResponse(BaseModel):
 
 class StockSchema(BaseModel):
     id: int
+    symbol: str
     name: str
-    price: float
+    country: str
+    market: str
+    sector: str
 
+class Config:
+    from_attributes = True
 
 class StockResponse(BaseModel):
     id: int
@@ -115,3 +120,31 @@ class Stock(BaseModel):
 class StockReviewCreate(BaseModel):
     content: str
     rating: Optional[int]
+
+class StockRealtimeResponse(BaseModel):
+    symbol: str
+    name: str
+    price: float
+    volume: int
+    market: str
+    country: str
+    saved: bool
+
+    class Config:
+        from_attributes = True
+
+class StockDetailResponse(BaseModel):
+    id: int
+    name: str
+    symbol: str
+    country: Optional[str]
+    market: Optional[str]
+    sector: Optional[str]
+    price: Optional[float] = None
+    volume: Optional[int] = None
+    recorded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
