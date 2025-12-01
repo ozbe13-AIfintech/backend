@@ -14,6 +14,8 @@ from app.schemas.stock import StockReviewCreate,StockDetailResponse
 from typing import Dict
 import logging
 from sqlalchemy.orm import aliased
+import pandas as pd
+import numpy as np
 def get_countries(db: Session) -> List[Country]:
     return db.query(Country).all()
 
@@ -66,28 +68,50 @@ def get_stocks(db: Session, country_id=None, market_id=None, sector_id=None):
 
 
 
-def get_stock_graph(db: Session, stock_id: int):
+def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
+    # DB에서 최근 limit개 데이터 가져오기
     prices = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)
-        .order_by(StockPrice.recorded_at)
+        .order_by(StockPrice.recorded_at.desc())
+        .limit(limit)
         .all()
     )
 
     if not prices:
-        raise HTTPException(404, "Stock prices not found")
+        raise HTTPException(status_code=404, detail="Stock prices not found")
+
+    # 오래된 → 최신 순으로 정렬
+    prices.reverse()
+
+    # Pandas DataFrame으로 변환
+    df = pd.DataFrame([{
+        "date": p.recorded_at,
+        "open": p.open,
+        "high": p.high,
+        "low": p.low,
+        "close": p.close,
+        "volume": p.volume,
+        "market_cap": p.market_cap,
+        "market_index": p.market_index,
+        "market_index_change": p.market_index_change
+    } for p in prices])
+
+    # 이동평균 계산
+    df["ma5"] = df["close"].rolling(window=5).mean()
+    df["ma10"] = df["close"].rolling(window=10).mean()
+
+    # ApexCharts용 시리즈 생성
+    candle_series = [{"x": row.date.isoformat(), "y": [row.open, row.high, row.low, row.close]} for row in df.itertuples()]
+    volume_series = [{"x": row.date.isoformat(), "y": row.volume} for row in df.itertuples()]
+    ma5_series = [{"x": row.date.isoformat(), "y": row.ma5 if not pd.isna(row.ma5) else None} for row in df.itertuples()]
+    ma10_series = [{"x": row.date.isoformat(), "y": row.ma10 if not pd.isna(row.ma10) else None} for row in df.itertuples()]
 
     return {
-        "dates": [p.recorded_at.isoformat() for p in prices],
-        "prices": [p.price for p in prices],
-        "open": [p.open for p in prices],
-        "high": [p.high for p in prices],
-        "low": [p.low for p in prices],
-        "close": [p.close for p in prices],
-        "volume": [p.volume for p in prices],
-        "market_cap": [p.market_cap for p in prices],
-        "market_index": [p.market_index for p in prices],
-        "market_index_change": [p.market_index_change for p in prices],
+        "candle": candle_series,
+        "volume": volume_series,
+        "ma5": ma5_series,
+        "ma10": ma10_series
     }
 
 
@@ -227,32 +251,115 @@ def get_or_create(session: Session, model, defaults=None, **kwargs):
     session.refresh(instance)
     return instance
 
+def to_native(x):
+    """numpy 타입을 기본 Python 타입으로 변환"""
+    if isinstance(x, (np.float32, np.float64)):
+        return float(x)
+    elif isinstance(x, (np.int32, np.int64, np.uint32, np.uint64)):
+        return int(x)
+    elif isinstance(x, np.generic):  # 나머지 numpy 스칼라
+        return x.item()
+    return x
+def insert_stock_price(db: Session, symbol: str):
+    symbol = symbol.upper()
+    ticker = yf.Ticker(symbol)
+
+    # 종목 정보 가져오기
+    info = ticker.info
+    stock_name = info.get("shortName", symbol)
+    country_name = info.get("country") or "Unknown"
+    market_name = info.get("exchange") or "Unknown"
+    sector_name = info.get("sector") or "Unknown"
+
+    # Country 조회/생성
+    country = db.query(Country).filter_by(name=country_name).first()
+    if not country:
+        country = Country(name=country_name, code=country_name[:3])
+        db.add(country)
+        db.commit()
+        db.refresh(country)
+
+    # Market 조회/생성
+    market = db.query(Market).filter_by(name=market_name, country_id=country.id).first()
+    if not market:
+        market = Market(name=market_name, country_id=country.id)
+        db.add(market)
+        db.commit()
+        db.refresh(market)
+
+    # Sector 조회/생성
+    sector = db.query(Sector).filter_by(name=sector_name).first()
+    if not sector:
+        sector = Sector(name=sector_name)
+        db.add(sector)
+        db.commit()
+        db.refresh(sector)
+
+    # Stock 조회/생성
+    stock = db.query(Stock).filter_by(symbol=symbol).first()
+    if not stock:
+        stock = Stock(
+            symbol=symbol,
+            name=stock_name,
+            country_id=country.id,
+            market_id=market.id,
+            sector_id=sector.id
+        )
+        db.add(stock)
+        db.commit()
+        db.refresh(stock)
+
+    # 최근 30일 가격 데이터 가져오기
+    hist = ticker.history(period="1mo")
+    if hist.empty:
+        print(f"{symbol}: 가격 데이터 없음")
+        return
+
+    for date, row in hist.iterrows():
+        exists = db.query(StockPrice).filter(
+            StockPrice.stock_id == stock.id,
+            StockPrice.recorded_at == date.to_pydatetime()
+        ).first()
+        if exists:
+            continue
+
+        # numpy 타입 → float/int 변환
+        stock_price = StockPrice(
+            stock_id=stock.id,
+            price=float(row['Close']),
+            open=float(row['Open']),
+            high=float(row['High']),
+            low=float(row['Low']),
+            close=float(row['Close']),
+            volume=int(row['Volume']),
+            recorded_at=date.to_pydatetime()
+        )
+        db.add(stock_price)
+    db.commit()
+    print(f"{symbol}: {len(hist)}개 가격 데이터 저장 완료")
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 
-
 def insert_realtime_stock(session: Session, symbol: str) -> dict:
     symbol = symbol.upper()
-    if not symbol:
-        return {"symbol": symbol, "error": "Invalid symbol."}
-
     try:
-        import yfinance as yf
         ticker = yf.Ticker(symbol)
         hist = ticker.history(period="1d")
         if hist.empty:
-            raise ValueError(f"가격 데이터를 가져올 수 없습니다. symbol: {symbol}")
+            return {"symbol": symbol, "error": "데이터 없음"}
 
         row = hist.iloc[-1]
+
+        # numpy → float/int 변환
         price = float(row["Close"])
         open_price = float(row["Open"])
         high = float(row["High"])
         low = float(row["Low"])
-        volume = int(row["Volume"])
         close_price = float(row["Close"])
+        volume = int(row["Volume"])
 
         info = ticker.info
         stock_name = info.get("shortName", symbol)
@@ -260,7 +367,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
         market_name = info.get("exchange") or "Unknown"
         sector_name = info.get("sector") or "Unknown"
 
-        # Country / Market / Sector 안전 조회 후 생성
+        # Country / Market / Sector 조회/생성
         country = session.query(Country).filter_by(name=country_name).first()
         if not country:
             country = Country(name=country_name, code=country_name[:3])
@@ -282,7 +389,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
             session.commit()
             session.refresh(sector)
 
-        # Stock 조회 후 없으면 생성
+        # Stock 조회/생성
         stock = session.query(Stock).filter_by(symbol=symbol).first()
         if not stock:
             stock = Stock(
@@ -298,24 +405,12 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
 
         today = datetime.utcnow().date()
 
-        exists = (
-            session.query(StockPrice)
-            .filter(
-                StockPrice.stock_id == stock.id,
-                func.date(StockPrice.recorded_at) == today
-            )
-            .first()
-        )
+        exists = session.query(StockPrice).filter(
+            StockPrice.stock_id == stock.id,
+            func.date(StockPrice.recorded_at) == today
+        ).first()
         if exists:
-            return {
-                "symbol": symbol,
-                "name": stock_name,
-                "price": price,
-                "volume": volume,
-                "saved": False,
-                "message": "이미 오늘 데이터 존재"
-            }
-
+            return {"symbol": symbol, "saved": False, "message": "이미 오늘 데이터 존재"}
 
         stock_price = StockPrice(
             stock_id=stock.id,
@@ -331,25 +426,27 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
         session.commit()
         session.refresh(stock_price)
 
-        return {"symbol": symbol, "name": stock_name, "price": price, "volume": volume, "saved": True}
+        return {"symbol": symbol, "saved": True, "price": price, "volume": volume}
 
     except Exception as e:
         session.rollback()
         return {"symbol": symbol, "error": str(e)}
 
 
-
-def insert_bulk_realtime_stocks(session: Session, symbols: List[str], update_threshold_minutes: int = 5) -> List[dict]:
+def insert_bulk_realtime_stocks(session: Session, symbols: List[str]) -> List[dict]:
     """여러 종목을 한 번에 실시간 갱신"""
     results = []
     for symbol in symbols:
-        result = insert_realtime_stock(
-            session=session,
-            symbol=symbol,
-            update_threshold_minutes=update_threshold_minutes
-        )
-        results.append(result)
+        try:
+            # 여기에서 float으로 변환하는 부분을 명확하게 추가할 수 있습니다.
+            result = insert_realtime_stock(session=session, symbol=symbol)
+            results.append(result)
+        except Exception as e:
+            # 개별 심볼 오류는 기록하고 계속 진행
+            results.append({"symbol": symbol, "error": str(e)})
     return results
+
+
 
 
 # services/stock_service.py
@@ -441,3 +538,54 @@ def get_filtered_stocks(
             "latest_price": latest_price
         })
     return results
+
+# app/services/stock.py
+
+from sqlalchemy.orm import Session, aliased
+from typing import Optional
+from app.models import Stock, StockPrice, Country, Market, Sector
+
+def get_stock_by_id(db: Session, stock_id: int) -> Optional[dict]:
+    """
+    특정 stock_id의 주식 상세 정보 조회
+    """
+    country_alias = aliased(Country)
+    market_alias = aliased(Market)
+    sector_alias = aliased(Sector)
+
+    # 주식과 관련 정보 조회
+    item = (
+        db.query(
+            Stock,
+            country_alias.name.label("country"),
+            market_alias.name.label("market"),
+            sector_alias.name.label("sector"),
+        )
+        .select_from(Stock)
+        .join(country_alias, Stock.country_id == country_alias.id)
+        .outerjoin(market_alias, Stock.market_id == market_alias.id)
+        .outerjoin(sector_alias, Stock.sector_id == sector_alias.id)
+        .filter(Stock.id == stock_id)
+        .first()
+    )
+
+    if not item:
+        return None
+
+    stock, country_name, market_name, sector_name = item
+
+
+    latest_price = (
+        db.query(StockPrice)
+        .filter(StockPrice.stock_id == stock.id)
+        .order_by(StockPrice.recorded_at.desc())
+        .first()
+    )
+
+    return {
+        "stock": stock,
+        "country": country_name,
+        "market": market_name,
+        "sector": sector_name,
+        "latest_price": latest_price
+    }

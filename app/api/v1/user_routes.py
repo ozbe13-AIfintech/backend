@@ -14,7 +14,7 @@ from app.schemas.user import (
     WishlistAddRequest
 )
 from app.models.user import User
-
+from app.services.user_service import get_wishlist_status, toggle_wishlist
 from app.services import user_service
 
 from app.schemas.user import UserUpdateRequest
@@ -119,3 +119,19 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
 @router.delete("/{user_id}/wishlist/{stock_id}", summary="Remove item from wishlist")
 def remove_wishlist_item(user_id: int, stock_id: int, db: Session = Depends(get_db)):
     return user_service.remove_wishlist_item(db, user_id, stock_id)
+
+# GET /api/v1/wishlist/{user_id}/{stock_id} - 찜 상태 조회
+@router.get("/wishlist/{user_id}/{stock_id}")
+def get_wishlist_status_route(user_id: int, stock_id: int, db: Session = Depends(get_db)):
+    is_fav = get_wishlist_status(db, user_id, stock_id)
+    return {"is_favorite": is_fav}
+
+# POST /api/v1/wishlist - 찜/해제
+@router.post("/wishlist")
+def toggle_wishlist_route(
+    stock_id: int,
+    favorite: bool,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return toggle_wishlist(db, current_user, stock_id, favorite)

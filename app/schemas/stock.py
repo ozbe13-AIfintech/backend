@@ -37,8 +37,8 @@ class StockSchema(BaseModel):
     market: str
     sector: str
 
-class Config:
-    from_attributes = True
+    class Config:
+     from_attributes = True
 
 class StockResponse(BaseModel):
     id: int
@@ -134,17 +134,31 @@ class StockRealtimeResponse(BaseModel):
         from_attributes = True
 
 class StockDetailResponse(BaseModel):
-    id: int
-    name: str
-    symbol: str
-    country: Optional[str]
-    market: Optional[str]
-    sector: Optional[str]
-    price: Optional[float] = None
-    volume: Optional[int] = None
-    recorded_at: Optional[datetime] = None
+     id: int
+     name: str
+     symbol: str
+     country: Optional[str]
+     market: Optional[str]
+     sector: Optional[str]
+     price: Optional[float] = None
+     volume: Optional[int] = None
+     recorded_at: Optional[datetime] = None
 
-    class Config:
+     class Config:
         from_attributes = True
 
+
+class CandlePoint(BaseModel):
+    x: str
+    y: List[float]
+
+class VolumePoint(BaseModel):
+    x: str
+    y: Optional[float]
+
+class StockGraphResponse(BaseModel):
+    candle: List[CandlePoint]
+    volume: List[VolumePoint]
+    ma5: List[VolumePoint]
+    ma10: List[VolumePoint]
 

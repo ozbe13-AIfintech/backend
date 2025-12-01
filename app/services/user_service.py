@@ -7,7 +7,7 @@ from app.models.user import User, IdentityVerification, UserWishlist
 from app.core import security
 from app.schemas.user import SignupRequest, LoginRequest, UserUpdateRequest
 from twilio.rest import Client
-
+from app.models.user import UserWishlist
 
 ANT_NAMES = [
     "갈고리머리개미", "곡예사개미", "모댁목수개미", "병정흰개미",
@@ -220,3 +220,19 @@ def get_user_profile(db: Session, user_id: int):
         "identity_verified": user.identity_verification.status
         if user.identity_verification else "unverified"
     }
+def get_wishlist_status(db: Session, user_id: int, stock_id: int) -> bool:
+    fav = db.query(UserWishlist).filter_by(user_id=user_id, stock_id=stock_id).first()
+    return bool(fav)
+
+def toggle_wishlist(db: Session, user: User, stock_id: int, favorite: bool) -> dict:
+    fav = db.query(UserWishlist).filter_by(user_id=user.id, stock_id=stock_id).first()
+    if favorite:
+        if not fav:
+            new_fav = UserWishlist(user_id=user.id, stock_id=stock_id)
+            db.add(new_fav)
+            db.commit()
+    else:
+        if fav:
+            db.delete(fav)
+            db.commit()
+    return {"stock_id": stock_id, "favorite": favorite}
