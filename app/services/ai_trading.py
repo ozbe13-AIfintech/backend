@@ -17,8 +17,14 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
 
     for stock_id in stocks_to_trade:
         # 감성 분석 기반 의사결정
-        sentiments = db.query(SocialSentiment).filter(SocialSentiment.stock_id == stock_id).all()
-        avg_sentiment = sum([s.sentiment_score for s in sentiments]) / len(sentiments) if sentiments else 0
+        sentiments = (
+            db.query(SocialSentiment).filter(SocialSentiment.stock_id == stock_id).all()
+        )
+        avg_sentiment = (
+            sum([s.sentiment_score for s in sentiments]) / len(sentiments)
+            if sentiments
+            else 0
+        )
 
         if avg_sentiment > 0.2:
             action = "BUY"
@@ -45,13 +51,22 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
         db.add(trade)
 
         # UserAsset 업데이트
-        asset = db.query(UserAsset).filter(UserAsset.user_id == user_id, UserAsset.stock_id == stock_id).first()
+        asset = (
+            db.query(UserAsset)
+            .filter(UserAsset.user_id == user_id, UserAsset.stock_id == stock_id)
+            .first()
+        )
         if not asset:
             asset = UserAsset(user_id=user_id, stock_id=stock_id)
             db.add(asset)
 
         if action == "BUY":
-            asset.avg_price = ((asset.avg_price * asset.quantity) + total_price) / (asset.quantity + quantity) if asset.quantity else total_price / quantity
+            asset.avg_price = (
+                ((asset.avg_price * asset.quantity) + total_price)
+                / (asset.quantity + quantity)
+                if asset.quantity
+                else total_price / quantity
+            )
             asset.quantity += quantity
         elif action == "SELL":
             asset.quantity = max(asset.quantity - quantity, 0)
@@ -62,7 +77,7 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
                 action=action,
                 quantity=quantity,
                 price=price,
-                total_price=total_price
+                total_price=total_price,
             )
         )
 

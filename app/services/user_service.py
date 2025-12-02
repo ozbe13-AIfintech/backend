@@ -10,9 +10,15 @@ from twilio.rest import Client
 from app.models.user import UserWishlist
 
 ANT_NAMES = [
-    "갈고리머리개미", "곡예사개미", "모댁목수개미", "병정흰개미",
-    "비시너스목수개미", "펜실베니커스목수개미", "흰발납자루개미",
-    "미친개미", "유동성개미",
+    "갈고리머리개미",
+    "곡예사개미",
+    "모댁목수개미",
+    "병정흰개미",
+    "비시너스목수개미",
+    "펜실베니커스목수개미",
+    "흰발납자루개미",
+    "미친개미",
+    "유동성개미",
 ]
 
 
@@ -25,7 +31,6 @@ def generate_nickname(db: Session) -> str:
 
 def generate_otp() -> str:
     return f"{random.randint(100000, 999999)}"
-
 
 
 def signup(db: Session, data: SignupRequest) -> User:
@@ -56,15 +61,12 @@ def login(db: Session, data: LoginRequest):
     access_token = security.create_access_token(user.id)
     refresh_token = security.create_refresh_token(user.id)
 
-
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "nickname": user.nickname,
         "user_id": user.id,
     }
-
-
 
 
 def send_otp(db: Session, user_id: int):
@@ -91,9 +93,7 @@ def send_otp(db: Session, user_id: int):
 
     client = Client(account_sid, auth_token)
     client.messages.create(
-        body=f"인증 코드: {iv.phone_code}",
-        from_=from_number,
-        to=user.phone
+        body=f"인증 코드: {iv.phone_code}", from_=from_number, to=user.phone
     )
 
 
@@ -122,8 +122,12 @@ def verify_otp(db: Session, user_id: int, code: str):
     db.commit()
 
 
-
-def verify_identity(db: Session, user_id: int, real_name: str, birth_date,):
+def verify_identity(
+    db: Session,
+    user_id: int,
+    real_name: str,
+    birth_date,
+):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
@@ -137,7 +141,9 @@ def verify_identity(db: Session, user_id: int, real_name: str, birth_date,):
 
     db.add(iv)
     db.commit()
-    db.refresh (iv)
+    db.refresh(iv)
+
+
 def refresh_access_token(refresh_token: str):
     payload = security.decode_token(refresh_token)
 
@@ -160,18 +166,17 @@ def add_wishlist(db: Session, user_id: int, stock_id: int):
     return get_wishlist(db, user_id)
 
 
-
 def get_wishlist(db: Session, user_id: int):
     items = db.query(UserWishlist).filter(UserWishlist.user_id == user_id).all()
-    return [
-        {"stock_id": i.stock_id, "stock_name": i.stock.name}
-        for i in items
-    ]
+    return [{"stock_id": i.stock_id, "stock_name": i.stock.name} for i in items]
+
+
 def remove_wishlist_item(db: Session, user_id: int, stock_id: int):
-    item = db.query(UserWishlist).filter(
-        UserWishlist.user_id == user_id,
-        UserWishlist.stock_id == stock_id
-    ).first()
+    item = (
+        db.query(UserWishlist)
+        .filter(UserWishlist.user_id == user_id, UserWishlist.stock_id == stock_id)
+        .first()
+    )
 
     if not item:
         raise HTTPException(404, "Wishlist item not found")
@@ -181,12 +186,8 @@ def remove_wishlist_item(db: Session, user_id: int, stock_id: int):
     return {"msg": "Item removed from wishlist"}
 
 
-
 def update_user_profile(
-    db: Session,
-    user_id: int,
-    data: UserUpdateRequest,
-    current_user: User
+    db: Session, user_id: int, data: UserUpdateRequest, current_user: User
 ):
     if current_user.id != user_id:
         raise HTTPException(403, "본인만 수정할 수 있습니다.")
@@ -197,7 +198,6 @@ def update_user_profile(
     ):
         raise HTTPException(400, "본인 인증 후에만 수정 가능합니다.")
 
-
     if data.phone:
         current_user.phone = data.phone
 
@@ -205,6 +205,8 @@ def update_user_profile(
     db.refresh(current_user)
 
     return current_user
+
+
 def get_user_profile(db: Session, user_id: int):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -217,12 +219,18 @@ def get_user_profile(db: Session, user_id: int):
         "balance": user.balance,
         "is_active": user.is_active,
         "created_at": user.created_at,
-        "identity_verified": user.identity_verification.status
-        if user.identity_verification else "unverified"
+        "identity_verified": (
+            user.identity_verification.status
+            if user.identity_verification
+            else "unverified"
+        ),
     }
+
+
 def get_wishlist_status(db: Session, user_id: int, stock_id: int) -> bool:
     fav = db.query(UserWishlist).filter_by(user_id=user_id, stock_id=stock_id).first()
     return bool(fav)
+
 
 def toggle_wishlist(db: Session, user: User, stock_id: int, favorite: bool) -> dict:
     fav = db.query(UserWishlist).filter_by(user_id=user.id, stock_id=stock_id).first()

@@ -15,7 +15,6 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 okt = Okt()
 
 
-
 def analyze_sentiment_ko(text: str) -> float:
     pos_words = ["좋다", "상승", "강세", "추천", "수익"]
     neg_words = ["나쁘다", "하락", "약세", "손실", "위험"]
@@ -36,7 +35,6 @@ def analyze_sentiment_ko(text: str) -> float:
     return score
 
 
-
 def fetch_news_for_stock(stock_name: str):
     url = f"https://newsapi.org/v2/everything?q={stock_name}&language=ko&apiKey={NEWS_API_KEY}"
     res = requests.get(url)
@@ -46,10 +44,8 @@ def fetch_news_for_stock(stock_name: str):
 
     articles = res.json().get("articles", [])
     return [
-        (a["title"] + " " + a.get("description", ""), "newsapi")
-        for a in articles[:5]
+        (a["title"] + " " + a.get("description", ""), "newsapi") for a in articles[:5]
     ]
-
 
 
 def save_social_sentiment(db: Session, stock_id: int, content: str, source: str):
@@ -60,7 +56,7 @@ def save_social_sentiment(db: Session, stock_id: int, content: str, source: str)
         content=content,
         source=source,
         sentiment_score=score,
-        recorded_at=datetime.utcnow()
+        recorded_at=datetime.utcnow(),
     )
 
     db.add(sentiment)
@@ -87,11 +83,10 @@ def fetch_and_save_sentiment_service(db: Session, stock_id: int, stock_name: str
     return saved
 
 
-
 def sentiment_trend_service(db: Session, stock_id: int):
-    sentiments = db.query(SocialSentiment).filter(
-        SocialSentiment.stock_id == stock_id
-    ).all()
+    sentiments = (
+        db.query(SocialSentiment).filter(SocialSentiment.stock_id == stock_id).all()
+    )
 
     if not sentiments:
         raise HTTPException(404, "No sentiment data found")

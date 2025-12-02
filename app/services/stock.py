@@ -5,17 +5,32 @@ from sqlalchemy import func
 import requests
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+
 import yfinance as yf
 from app.models.stock import (
-    Country, Market, Sector, Stock,
-    StockPrice, StockPrediction, StockReview, SocialSentiment
+    Country,
+    Market,
+    Sector,
+    Stock,
+    StockPrice,
+    StockPrediction,
+    StockReview,
+    SocialSentiment,
 )
-from app.schemas.stock import StockReviewCreate,StockDetailResponse
+from app.schemas.stock import (
+    StockReviewCreate,
+    StockDetailResponse,
+    StockReviewResponse,
+)
 from typing import Dict
 import logging
 from sqlalchemy.orm import aliased
 import pandas as pd
 import numpy as np
+from app.models.user import User
+from sqlalchemy.orm import Session, joinedload
+
+
 def get_countries(db: Session) -> List[Country]:
     return db.query(Country).all()
 
@@ -32,12 +47,17 @@ def get_sectors(db: Session) -> List[Sector]:
 
 
 def get_stocks(db: Session, country_id=None, market_id=None, sector_id=None):
-    query = db.query(
-        Stock,
-        Country.name.label("country"),
-        Market.name.label("market"),
-        Sector.name.label("sector")
-    ).join(Country).join(Market, isouter=True).join(Sector, isouter=True)
+    query = (
+        db.query(
+            Stock,
+            Country.name.label("country"),
+            Market.name.label("market"),
+            Sector.name.label("sector"),
+        )
+        .join(Country)
+        .join(Market, isouter=True)
+        .join(Sector, isouter=True)
+    )
 
     if country_id:
         query = query.filter(Stock.country_id == country_id)
@@ -48,8 +68,12 @@ def get_stocks(db: Session, country_id=None, market_id=None, sector_id=None):
 
     results = []
     for stock, country, market, sector in query.all():
-        latest_price = db.query(StockPrice).filter(StockPrice.stock_id == stock.id)\
-                          .order_by(StockPrice.recorded_at.desc()).first()
+        latest_price = (
+            db.query(StockPrice)
+            .filter(StockPrice.stock_id == stock.id)
+            .order_by(StockPrice.recorded_at.desc())
+            .first()
+        )
         results.append(
             StockDetailResponse(
                 id=stock.id,
@@ -64,8 +88,6 @@ def get_stocks(db: Session, country_id=None, market_id=None, sector_id=None):
             )
         )
     return results
-
-
 
 
 def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
@@ -85,33 +107,49 @@ def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
     prices.reverse()
 
     # Pandas DataFrame으로 변환
-    df = pd.DataFrame([{
-        "date": p.recorded_at,
-        "open": p.open,
-        "high": p.high,
-        "low": p.low,
-        "close": p.close,
-        "volume": p.volume,
-        "market_cap": p.market_cap,
-        "market_index": p.market_index,
-        "market_index_change": p.market_index_change
-    } for p in prices])
+    df = pd.DataFrame(
+        [
+            {
+                "date": p.recorded_at,
+                "open": p.open,
+                "high": p.high,
+                "low": p.low,
+                "close": p.close,
+                "volume": p.volume,
+                "market_cap": p.market_cap,
+                "market_index": p.market_index,
+                "market_index_change": p.market_index_change,
+            }
+            for p in prices
+        ]
+    )
 
     # 이동평균 계산
     df["ma5"] = df["close"].rolling(window=5).mean()
     df["ma10"] = df["close"].rolling(window=10).mean()
 
     # ApexCharts용 시리즈 생성
-    candle_series = [{"x": row.date.isoformat(), "y": [row.open, row.high, row.low, row.close]} for row in df.itertuples()]
-    volume_series = [{"x": row.date.isoformat(), "y": row.volume} for row in df.itertuples()]
-    ma5_series = [{"x": row.date.isoformat(), "y": row.ma5 if not pd.isna(row.ma5) else None} for row in df.itertuples()]
-    ma10_series = [{"x": row.date.isoformat(), "y": row.ma10 if not pd.isna(row.ma10) else None} for row in df.itertuples()]
+    candle_series = [
+        {"x": row.date.isoformat(), "y": [row.open, row.high, row.low, row.close]}
+        for row in df.itertuples()
+    ]
+    volume_series = [
+        {"x": row.date.isoformat(), "y": row.volume} for row in df.itertuples()
+    ]
+    ma5_series = [
+        {"x": row.date.isoformat(), "y": row.ma5 if not pd.isna(row.ma5) else None}
+        for row in df.itertuples()
+    ]
+    ma10_series = [
+        {"x": row.date.isoformat(), "y": row.ma10 if not pd.isna(row.ma10) else None}
+        for row in df.itertuples()
+    ]
 
     return {
         "candle": candle_series,
         "volume": volume_series,
         "ma5": ma5_series,
-        "ma10": ma10_series
+        "ma10": ma10_series,
     }
 
 
@@ -130,10 +168,23 @@ def llm_predict(price_list: list):
             "messages": [{"role": "user", "content": prompt}],
         },
     )
-    output = response.json()["choices"][0]["message"]["content"]
+
+    # 응답 구조 로깅
+    logging.debug("API Response: %s", response.json())
+
+    # 응답에서 'choices'가 있는지 확인
+    response_json = response.json()
+
+    if "choices" not in response_json:
+        logging.error("API Response does not contain 'choices': %s", response_json)
+        return None  # 'choices'가 없으면 None을 반환하거나 예외를 처리
+
+    # 정상적으로 'choices' 키가 있다면
+    output = response_json["choices"][0]["message"]["content"]
     try:
         return float(output.replace(",", "").replace("원", "").strip())
     except:
+        logging.error("Error while parsing prediction output: %s", output)
         return None
 
 
@@ -153,13 +204,12 @@ def predict_stock(db: Session, stock_id: int, use_post: bool = False):
     if prediction is None:
         raise HTTPException(500, "Prediction failed")
 
-
     if use_post:
         stock_pred = StockPrediction(
             stock_id=stock_id,
             predicted_price=prediction,
             model_name="openai_gpt4",
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db.add(stock_pred)
         db.commit()
@@ -194,48 +244,81 @@ def get_top_gainers(db: Session, limit: int = 10):
             continue
 
         gain_percent = (latest.price - previous.price) / previous.price * 100
-        gainers.append({
-            "stock_id": stock.id,
-            "name": stock.name,
-            "gain_percent": gain_percent
-        })
-
+        gainers.append(
+            {"stock_id": stock.id, "name": stock.name, "gain_percent": gain_percent}
+        )
 
     top = sorted(gainers, key=lambda x: x["gain_percent"], reverse=True)[:limit]
     return top
 
 
-def get_stock_reviews(db: Session, stock_id: int):
-    return db.query(StockReview).filter(StockReview.stock_id == stock_id).all()
+def get_stock_reviews(db: Session, stock_id: int) -> list[StockReviewResponse]:
+    """
+    특정 주식 리뷰 조회 (최신순)
+    로그인 필요 없음
+    """
+    reviews = (
+        db.query(StockReview)
+        .options(joinedload(StockReview.user))  # user 객체 미리 로딩
+        .filter(StockReview.stock_id == stock_id)
+        .order_by(StockReview.created_at.desc())
+        .all()
+    )
+
+    # user가 없는 경우는 제외
+    return [
+        StockReviewResponse(
+            id=r.id,
+            content=r.content,
+            rating=r.rating,
+            created_at=r.created_at,
+            user_id=r.user.id,
+            user_name=r.user.nickname,
+        )
+        for r in reviews
+        if r.user
+    ]
 
 
-def create_review(db: Session, stock_id: int, data: StockReviewCreate, current_user):
+def create_stock_review(
+    db: Session, stock_id: int, data: StockReviewCreate, current_user: User
+) -> StockReviewResponse:
+    """
+    리뷰 작성 (로그인 필요)
+    """
     stock_obj = db.query(Stock).filter(Stock.id == stock_id).first()
     if not stock_obj:
-        raise HTTPException(404, "Stock not found")
+        raise HTTPException(status_code=404, detail="Stock not found")
+
     review = StockReview(
         stock_id=stock_id,
         content=data.content,
         rating=data.rating,
-        user_id=current_user.id
+        user_id=current_user.id,
     )
     db.add(review)
     db.commit()
     db.refresh(review)
-    return review
 
+    return StockReviewResponse(
+        id=review.id,
+        content=review.content,
+        rating=review.rating,
+        created_at=review.created_at,
+        user_id=current_user.id,
+        user_name=current_user.nickname,
+    )
 
 
 def search_stocks(db: Session, query: str, skip: int = 0, limit: int = 50):
     return (
         db.query(Stock)
-        .filter(
-            (Stock.name.ilike(f"%{query}%")) | (Stock.ticker.ilike(f"%{query}%"))
-        )
+        .filter((Stock.name.ilike(f"%{query}%")) | (Stock.ticker.ilike(f"%{query}%")))
         .offset(skip)
         .limit(limit)
         .all()
     )
+
 
 def get_or_create(session: Session, model, defaults=None, **kwargs):
     """SQLAlchemy에서 객체 조회 후 없으면 생성"""
@@ -251,6 +334,7 @@ def get_or_create(session: Session, model, defaults=None, **kwargs):
     session.refresh(instance)
     return instance
 
+
 def to_native(x):
     """numpy 타입을 기본 Python 타입으로 변환"""
     if isinstance(x, (np.float32, np.float64)):
@@ -260,6 +344,8 @@ def to_native(x):
     elif isinstance(x, np.generic):  # 나머지 numpy 스칼라
         return x.item()
     return x
+
+
 def insert_stock_price(db: Session, symbol: str):
     symbol = symbol.upper()
     ticker = yf.Ticker(symbol)
@@ -287,7 +373,6 @@ def insert_stock_price(db: Session, symbol: str):
         db.commit()
         db.refresh(market)
 
-    # Sector 조회/생성
     sector = db.query(Sector).filter_by(name=sector_name).first()
     if not sector:
         sector = Sector(name=sector_name)
@@ -303,7 +388,7 @@ def insert_stock_price(db: Session, symbol: str):
             name=stock_name,
             country_id=country.id,
             market_id=market.id,
-            sector_id=sector.id
+            sector_id=sector.id,
         )
         db.add(stock)
         db.commit()
@@ -316,23 +401,27 @@ def insert_stock_price(db: Session, symbol: str):
         return
 
     for date, row in hist.iterrows():
-        exists = db.query(StockPrice).filter(
-            StockPrice.stock_id == stock.id,
-            StockPrice.recorded_at == date.to_pydatetime()
-        ).first()
+        exists = (
+            db.query(StockPrice)
+            .filter(
+                StockPrice.stock_id == stock.id,
+                StockPrice.recorded_at == date.to_pydatetime(),
+            )
+            .first()
+        )
         if exists:
             continue
 
         # numpy 타입 → float/int 변환
         stock_price = StockPrice(
             stock_id=stock.id,
-            price=float(row['Close']),
-            open=float(row['Open']),
-            high=float(row['High']),
-            low=float(row['Low']),
-            close=float(row['Close']),
-            volume=int(row['Volume']),
-            recorded_at=date.to_pydatetime()
+            price=float(row["Close"]),
+            open=float(row["Open"]),
+            high=float(row["High"]),
+            low=float(row["Low"]),
+            close=float(row["Close"]),
+            volume=int(row["Volume"]),
+            recorded_at=date.to_pydatetime(),
         )
         db.add(stock_price)
     db.commit()
@@ -340,7 +429,6 @@ def insert_stock_price(db: Session, symbol: str):
 
 
 logging.basicConfig(level=logging.DEBUG)
-
 
 
 def insert_realtime_stock(session: Session, symbol: str) -> dict:
@@ -375,7 +463,11 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
             session.commit()
             session.refresh(country)
 
-        market = session.query(Market).filter_by(name=market_name, country_id=country.id).first()
+        market = (
+            session.query(Market)
+            .filter_by(name=market_name, country_id=country.id)
+            .first()
+        )
         if not market:
             market = Market(name=market_name, country_id=country.id)
             session.add(market)
@@ -397,7 +489,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
                 name=stock_name,
                 country_id=country.id,
                 market_id=market.id,
-                sector_id=sector.id
+                sector_id=sector.id,
             )
             session.add(stock)
             session.commit()
@@ -405,12 +497,20 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
 
         today = datetime.utcnow().date()
 
-        exists = session.query(StockPrice).filter(
-            StockPrice.stock_id == stock.id,
-            func.date(StockPrice.recorded_at) == today
-        ).first()
+        exists = (
+            session.query(StockPrice)
+            .filter(
+                StockPrice.stock_id == stock.id,
+                func.date(StockPrice.recorded_at) == today,
+            )
+            .first()
+        )
         if exists:
-            return {"symbol": symbol, "saved": False, "message": "이미 오늘 데이터 존재"}
+            return {
+                "symbol": symbol,
+                "saved": False,
+                "message": "이미 오늘 데이터 존재",
+            }
 
         stock_price = StockPrice(
             stock_id=stock.id,
@@ -420,7 +520,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
             low=low,
             close=close_price,
             volume=volume,
-            recorded_at=datetime.utcnow()
+            recorded_at=datetime.utcnow(),
         )
         session.add(stock_price)
         session.commit()
@@ -445,8 +545,6 @@ def insert_bulk_realtime_stocks(session: Session, symbols: List[str]) -> List[di
             # 개별 심볼 오류는 기록하고 계속 진행
             results.append({"symbol": symbol, "error": str(e)})
     return results
-
-
 
 
 # services/stock_service.py
@@ -483,20 +581,23 @@ def get_stocks_list(db: Session, country_id=None, market_id=None, sector_id=None
             .order_by(StockPrice.recorded_at.desc())
             .first()
         )
-        results.append({
-            "stock": stock,
-            "country": country_name,
-            "market": market_name,
-            "sector": sector_name,
-            "latest_price": latest_price
-        })
+        results.append(
+            {
+                "stock": stock,
+                "country": country_name,
+                "market": market_name,
+                "sector": sector_name,
+                "latest_price": latest_price,
+            }
+        )
     return results
+
 
 def get_filtered_stocks(
     db: Session,
     country_id: Optional[int] = None,
     market_id: Optional[int] = None,
-    sector_id: Optional[int] = None
+    sector_id: Optional[int] = None,
 ) -> List[dict]:
     country_alias = aliased(Country)
     market_alias = aliased(Market)
@@ -530,20 +631,17 @@ def get_filtered_stocks(
             .order_by(StockPrice.recorded_at.desc())
             .first()
         )
-        results.append({
-            "stock": stock,
-            "country": country_name,
-            "market": market_name,
-            "sector": sector_name,
-            "latest_price": latest_price
-        })
+        results.append(
+            {
+                "stock": stock,
+                "country": country_name,
+                "market": market_name,
+                "sector": sector_name,
+                "latest_price": latest_price,
+            }
+        )
     return results
 
-# app/services/stock.py
-
-from sqlalchemy.orm import Session, aliased
-from typing import Optional
-from app.models import Stock, StockPrice, Country, Market, Sector
 
 def get_stock_by_id(db: Session, stock_id: int) -> Optional[dict]:
     """
@@ -574,7 +672,6 @@ def get_stock_by_id(db: Session, stock_id: int) -> Optional[dict]:
 
     stock, country_name, market_name, sector_name = item
 
-
     latest_price = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock.id)
@@ -587,5 +684,5 @@ def get_stock_by_id(db: Session, stock_id: int) -> Optional[dict]:
         "country": country_name,
         "market": market_name,
         "sector": sector_name,
-        "latest_price": latest_price
+        "latest_price": latest_price,
     }

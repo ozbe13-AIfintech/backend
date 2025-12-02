@@ -12,5 +12,7 @@ def get_popular_news(limit: int = Query(10, gt=0, le=50)):
 
 
 @router.get("/search", response_model=List[NewsResponse])
-def search_news(query: str = Query(..., min_length=1), limit: int = Query(10, gt=0, le=50)):
+def search_news(
+    query: str = Query(..., min_length=1), limit: int = Query(10, gt=0, le=50)
+):
     return search_stock_news(query=query, limit=limit)

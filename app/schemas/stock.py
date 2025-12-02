@@ -38,7 +38,8 @@ class StockSchema(BaseModel):
     sector: str
 
     class Config:
-     from_attributes = True
+        from_attributes = True
+
 
 class StockResponse(BaseModel):
     id: int
@@ -79,9 +80,12 @@ class StockPredictionResponse(BaseModel):
 
 
 class StockReviewResponse(BaseModel):
+    id : int
     content: str
     rating: Optional[int]
     created_at: datetime
+    user_id: int
+    user_name: str
 
     class Config:
         from_attributes = True
@@ -96,7 +100,6 @@ class SocialSentimentResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 
 class FraudLogResponse(BaseModel):
@@ -121,6 +124,7 @@ class StockReviewCreate(BaseModel):
     content: str
     rating: Optional[int]
 
+
 class StockRealtimeResponse(BaseModel):
     symbol: str
     name: str
@@ -133,18 +137,19 @@ class StockRealtimeResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class StockDetailResponse(BaseModel):
-     id: int
-     name: str
-     symbol: str
-     country: Optional[str]
-     market: Optional[str]
-     sector: Optional[str]
-     price: Optional[float] = None
-     volume: Optional[int] = None
-     recorded_at: Optional[datetime] = None
 
-     class Config:
+class StockDetailResponse(BaseModel):
+    id: int
+    name: str
+    symbol: str
+    country: Optional[str]
+    market: Optional[str]
+    sector: Optional[str]
+    price: Optional[float] = None
+    volume: Optional[int] = None
+    recorded_at: Optional[datetime] = None
+
+    class Config:
         from_attributes = True
 
 
@@ -152,13 +157,14 @@ class CandlePoint(BaseModel):
     x: str
     y: List[float]
 
+
 class VolumePoint(BaseModel):
     x: str
     y: Optional[float]
+
 
 class StockGraphResponse(BaseModel):
     candle: List[CandlePoint]
     volume: List[VolumePoint]
     ma5: List[VolumePoint]
     ma10: List[VolumePoint]
-

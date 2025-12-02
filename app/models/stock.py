@@ -59,6 +59,7 @@ class Stock(Base):
     sentiments = relationship("SocialSentiment", back_populates="stock")
     fraud_logs = relationship("FraudLog", back_populates="stock")
 
+
 class StockPrice(Base):
     __tablename__ = "stock_prices"
     id = Column(Integer, primary_key=True)
@@ -73,7 +74,6 @@ class StockPrice(Base):
     market_index = Column(Float)
     market_index_change = Column(Float)
     recorded_at = Column(DateTime, nullable=False)
-
 
     stock = relationship("Stock", back_populates="prices")
 
@@ -93,10 +93,13 @@ class StockReview(Base):
     __tablename__ = "stock_reviews"
     id = Column(Integer, primary_key=True)
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text)
     rating = Column(Integer)
     created_at = Column(DateTime, server_default=func.now())
+
     stock = relationship("Stock", back_populates="reviews")
+    user = relationship("User", back_populates="reviews")
 
 
 class SocialSentiment(Base):

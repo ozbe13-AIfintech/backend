@@ -12,7 +12,6 @@ from app.models.user import User
 from app.core.config import settings
 
 
-
 BCRYPT_MAX_LENGTH = 72
 
 
@@ -29,29 +28,21 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def hash_password(password: str) -> str:
     return pwd_context.hash(password[:BCRYPT_MAX_LENGTH])
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password[:BCRYPT_MAX_LENGTH], hashed_password)
 
 
 def create_access_token(user_id: int):
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_EXPIRE_MINUTES)
-    payload = {
-        "sub": str(user_id),
-        "exp": expire,
-        "type": "access"
-    }
+    payload = {"sub": str(user_id), "exp": expire, "type": "access"}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: int):
     expire = datetime.utcnow() + timedelta(days=REFRESH_EXPIRE_DAYS)
-    payload = {
-        "sub": str(user_id),
-        "exp": expire,
-        "type": "refresh"
-    }
+    payload = {"sub": str(user_id), "exp": expire, "type": "refresh"}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
 
 
 def decode_token(token: str) -> dict:
@@ -61,10 +52,9 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> User:
 
     token = credentials.credentials

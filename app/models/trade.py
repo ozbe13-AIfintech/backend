@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 
+
 class Trade(Base):
     __tablename__ = "trade"
     id = Column(Integer, primary_key=True, index=True)

@@ -22,7 +22,6 @@ class TradeResponse(BaseModel):
     price: float
     total_price: float
 
-
     class Config:
         from_attributes = True
 
@@ -36,7 +35,5 @@ class TradeHistoryResponse(BaseModel):
     total_price: float
     created_at: datetime
 
-
     class Config:
         from_attributes = True
-

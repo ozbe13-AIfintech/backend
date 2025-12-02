@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Tuple
 import numpy as np
 
+
 def determine_risk_level(risk_score: float) -> str:
     if risk_score >= 80:
         return "High"
@@ -13,14 +14,18 @@ def determine_risk_level(risk_score: float) -> str:
         return "Low"
 
 
-def get_fraud_logs_service(db: Session, stock_id: Optional[int] = None) -> List[FraudLog]:
+def get_fraud_logs_service(
+    db: Session, stock_id: Optional[int] = None
+) -> List[FraudLog]:
     query = db.query(FraudLog)
     if stock_id:
         query = query.filter(FraudLog.stock_id == stock_id)
     return query.order_by(FraudLog.created_at.desc()).all()
 
 
-def detect_fraud_service(db: Session, stock_id: int, user_id: int) -> Tuple[Optional[FraudLog], str]:
+def detect_fraud_service(
+    db: Session, stock_id: int, user_id: int
+) -> Tuple[Optional[FraudLog], str]:
     prices = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)

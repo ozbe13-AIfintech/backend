@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "super-secret-key"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
@@ -23,10 +24,7 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     APP_DEBUG: bool = True
 
-    model_config = {
-        "env_file": ".env",
-        "extra": "allow"
-    }
+    model_config = {"env_file": ".env", "extra": "allow"}
+
 
 settings = Settings()
-

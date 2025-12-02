@@ -19,7 +19,8 @@ class Index(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     market_id = Column(Integer, ForeignKey("markets.id"))
-
+    current_value = Column(Float)
+    change = Column(Float)
     values = relationship("IndexValue", back_populates="index")
     components = relationship(
         "Stock", secondary=index_component, back_populates="indices"

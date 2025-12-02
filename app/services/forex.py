@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 EXCHANGE_API_URL = "https://api.exchangerate.host/latest"
 
+
 def get_exchange_rate(base: str, target: str):
     params = {"base": base.upper(), "symbols": target.upper()}
     res = requests.get(EXCHANGE_API_URL, params=params)

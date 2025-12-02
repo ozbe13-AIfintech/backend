@@ -42,6 +42,9 @@ def handle_webhook_event(event: dict, db: Session):
         return {"status": "success", "amount": amount_received, "user_id": user_id}
 
     elif event_type == "payment_intent.payment_failed":
-        return {"status": "failed", "reason": data.get("last_payment_error", {}).get("message")}
+        return {
+            "status": "failed",
+            "reason": data.get("last_payment_error", {}).get("message"),
+        }
 
     return {"status": "ignored", "event_type": event_type}

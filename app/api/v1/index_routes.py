@@ -30,16 +30,22 @@ def create_index_route(data: IndexCreate, db: Session = Depends(get_db)):
 
 @router.put("/indices/{index_id}", response_model=IndexSchema)
 def update_index_route(index_id: int, data: IndexUpdate, db: Session = Depends(get_db)):
-    idx_obj = db.query(index_service.Index).filter(index_service.Index.id == index_id).first()
+    idx_obj = (
+        db.query(index_service.Index).filter(index_service.Index.id == index_id).first()
+    )
     if not idx_obj:
         raise HTTPException(status_code=404, detail="Index not found")
-    idx = index_service.update_index(db, idx_obj, data.name, data.market_id, data.components)
+    idx = index_service.update_index(
+        db, idx_obj, data.name, data.market_id, data.components
+    )
     return index_service.get_index_detail(db, idx.id)
 
 
 @router.delete("/indices/{index_id}", response_model=dict)
 def delete_index(index_id: int, db: Session = Depends(get_db)):
-    idx = db.query(index_service.Index).filter(index_service.Index.id == index_id).first()
+    idx = (
+        db.query(index_service.Index).filter(index_service.Index.id == index_id).first()
+    )
     if not idx:
         raise HTTPException(status_code=404, detail="Index not found")
     db.delete(idx)

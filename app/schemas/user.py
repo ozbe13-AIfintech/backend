@@ -30,8 +30,6 @@ class UserResponse(BaseModel):
     phone: str
 
 
-
-
 class MessageResponse(BaseModel):
     msg: str
 
@@ -67,11 +65,13 @@ class WishlistResponse(BaseModel):
     user_id: int
     wishlist: List[WishlistItem]
 
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     nickname: str
     user_id: int
+
 
 class WishlistAddRequest(BaseModel):
     user_id: int

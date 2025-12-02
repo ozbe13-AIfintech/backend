@@ -15,7 +15,7 @@ def fetch_popular_stock_news(limit: int = 10):
         "language": "ko",
         "pageSize": limit,
         "apiKey": NEWS_API_KEY,
-        "q": "주식 OR 증시 OR 코스피 OR 코스닥"
+        "q": "주식 OR 증시 OR 코스피 OR 코스닥",
     }
 
     res = requests.get(NEWS_API_URL, params=params)
@@ -29,19 +29,16 @@ def fetch_popular_stock_news(limit: int = 10):
             "description": a.get("description"),
             "source": a.get("source", {}).get("name"),
             "url": a.get("url"),
-            "published_at": datetime.fromisoformat(a.get("publishedAt").replace("Z", "+00:00"))
+            "published_at": datetime.fromisoformat(
+                a.get("publishedAt").replace("Z", "+00:00")
+            ),
         }
         for a in articles
     ]
 
 
 def search_stock_news(query: str, limit: int = 10):
-    params = {
-        "q": query,
-        "language": "ko",
-        "pageSize": limit,
-        "apiKey": NEWS_API_KEY
-    }
+    params = {"q": query, "language": "ko", "pageSize": limit, "apiKey": NEWS_API_KEY}
 
     res = requests.get("https://newsapi.org/v2/everything", params=params)
     if res.status_code != 200:
@@ -54,7 +51,9 @@ def search_stock_news(query: str, limit: int = 10):
             "description": a.get("description"),
             "source": a.get("source", {}).get("name"),
             "url": a.get("url"),
-            "published_at": datetime.fromisoformat(a.get("publishedAt").replace("Z", "+00:00"))
+            "published_at": datetime.fromisoformat(
+                a.get("publishedAt").replace("Z", "+00:00")
+            ),
         }
         for a in articles
     ]

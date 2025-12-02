@@ -7,6 +7,7 @@ from app.services.fraud_detector import get_fraud_logs_service, detect_fraud_ser
 
 router = APIRouter(tags=["Fraud"])
 
+
 @router.get("/logs/{stock_id}", response_model=List[FraudLogResponse])
 def fraud_logs(stock_id: int, db: Session = Depends(get_db)):
     logs = get_fraud_logs_service(db, stock_id)
@@ -19,7 +20,9 @@ def fraud_logs(stock_id: int, db: Session = Depends(get_db)):
 def stock_fraud(stock_id: int, user_id: int, db: Session = Depends(get_db)):
     fraud_log, risk_level = detect_fraud_service(db, stock_id, user_id)
     if not fraud_log:
-        raise HTTPException(status_code=404, detail="Not enough data for fraud detection")
+        raise HTTPException(
+            status_code=404, detail="Not enough data for fraud detection"
+        )
     return {
         "risk_score": fraud_log.risk_score,
         "reason": fraud_log.reason,

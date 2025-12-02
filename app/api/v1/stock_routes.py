@@ -1,1 +1,235 @@
-from fastapi import APIRouter, Depends,Query,HTTPExceptionfrom app.models.stock import Stockfrom app.models.stock import StockPricefrom app.models import Stock, Country, Market, Sectorfrom pydantic import BaseModelfrom fastapi import APIRouter, Dependsfrom sqlalchemy.orm import Sessionfrom app.db.seed_data import insert_realtime_stockfrom app.schemas.stock import StockGraphResponsefrom app.db.session import get_dbfrom app.schemas.stock import (    CountryResponse,    MarketResponse,    SectorResponse,    StockResponse,    StockReviewResponse,    StockSchema,    StockReviewCreate,    StockPriceResponse,    StockPredictionResponse,StockDetailResponse)from app.services import stockfrom app.core.security import get_current_userfrom app.models.user import Userfrom app.services.stock import insert_realtime_stock,get_stocks,get_filtered_stocksfrom typing import Optional, Listfrom datetime import datetimerouter = APIRouter()@router.get("/countries", response_model=List[CountryResponse])def list_countries(db: Session = Depends(get_db)):    return stock.get_countries(db)class SymbolsRequest(BaseModel):    symbols: List[str]@router.get("/markets", response_model=List[MarketResponse])def list_markets(country_id: Optional[int] = None, db: Session = Depends(get_db)):    return stock.get_markets(db, country_id)@router.get("/sectors", response_model=List[SectorResponse])def list_sectors(db: Session = Depends(get_db)):    return stock.get_sectors(db)@router.get("/{stock_id}/graph", response_model=StockGraphResponse)def stock_graph_data(    stock_id: int,    db: Session = Depends(get_db),    limit: int = Query(50, gt=0)):    """    특정 주식의 가격 데이터 그래프 반환.    서비스에서 ApexCharts용 구조(candle, volume, ma5, ma10) 반환    """    return stock.get_stock_graph(db, stock_id, limit=limit)@router.get("/{stock_id}/predict", response_model=StockPredictionResponse)def stock_predict_get(stock_id: int, db: Session = Depends(get_db)):    return stock.predict_stock(db, stock_id, use_post=False)@router.post("/{stock_id}/predict", response_model=StockPredictionResponse)def stock_predict_post(stock_id: int, db: Session = Depends(get_db)):    return stock.predict_stock(db, stock_id, use_post=True)@router.get("/top_gainers")def top_gainers(limit: int = Query(10, gt=0), db: Session = Depends(get_db)):    return stock.get_top_gainers(db, limit=limit)@router.get("/{stock_id}/reviews", response_model=List[StockReviewResponse])def get_reviews(stock_id: int, db: Session = Depends(get_db)):    return stock.get_stock_reviews(db, stock_id)@router.post("/{stock_id}/reviews", response_model=StockReviewResponse)def create_review(    stock_id: int,    data: StockReviewCreate,    db: Session = Depends(get_db),    current_user: User = Depends(get_current_user),):    return stock.create_review(db, stock_id, data, current_user)@router.get("/search", response_model=List[StockSchema])def search_stocks(    query: str = Query(..., min_length=1),    skip: int = Query(0, ge=0),    limit: int = Query(50, gt=0),    db: Session = Depends(get_db),):    return stock.search_stocks(db, query, skip, limit)@router.post("/realtime/bulk")def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db)):    if not request.symbols:        raise HTTPException(status_code=400, detail="symbols 리스트가 비어있습니다.")    results = []    for symbol in request.symbols:        print(f"Request에서 받은 심볼: {symbol}")  # 디버깅 로그        symbol = symbol.strip().upper()  # 공백 제거하고 대문자로 변환        print(f"정리된 심볼: {symbol}")  # 정리된 심볼 로그        try:            # 심볼 유효성 검사            if not symbol or symbol.lower() == "bulk":                print(f"유효하지 않은 심볼 발견: {symbol}")  # 유효하지 않은 심볼 로그                raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol}")            result = insert_realtime_stock(db, symbol)  # 실제 주식 데이터 처리 함수 호출            results.append(result)        except Exception as e:            print(f"심볼 {symbol} 처리 중 오류 발생: {str(e)}")  # 오류 로그            results.append({"symbol": symbol, "error": str(e)})    return {"status": "success", "results": results}@router.post("/realtime/{symbol}")def add_realtime_stock(symbol: str, db: Session = Depends(get_db)):    result = insert_realtime_stock(db, symbol.upper())  # 대문자 처리    if 'error' in result:        raise HTTPException(status_code=400, detail=result['error'])    return result@router.post("/realtime")def insert_realtime_stocks_batch(db: Session = Depends(get_db)):    symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]  # 예시 종목    results = []    for symbol in symbols:        try:            result = insert_realtime_stock(db, symbol.upper())  # 대문자 처리            results.append(result)        except Exception as e:            results.append({"symbol": symbol, "error": str(e)})    return {"status": "success", "results": results}@router.get("/", response_model=List[StockDetailResponse])def list_stocks(    country_id: Optional[int] = Query(None),    market_id: Optional[int] = Query(None),    sector_id: Optional[int] = Query(None),    db: Session = Depends(get_db)):    stocks_data = get_filtered_stocks(db, country_id, market_id, sector_id)    return [        StockDetailResponse(            id=item["stock"].id,            name=item["stock"].name,            symbol=item["stock"].symbol,            country=item["country"],            market=item["market"],            sector=item["sector"],            price=item["latest_price"].price if item["latest_price"] else None,            volume=item["latest_price"].volume if item["latest_price"] else None,            recorded_at=item["latest_price"].recorded_at if item["latest_price"] else None,        )        for item in stocks_data    ]@router.get("/stocks", response_model=List[StockDetailResponse])def get_stocks(    country_id: Optional[int] = None,    market_id: Optional[int] = None,    sector_id: Optional[int] = None,    db: Session = Depends(get_db)):    stocks_data =stock.get_stocks_list(db, country_id, market_id, sector_id)    return [        StockDetailResponse(            id=item["stock"].id,            name=item["stock"].name,            symbol=item["stock"].symbol,            country=item["country"],            market=item["market"],            sector=item["sector"],            price=item["latest_price"].price if item["latest_price"] else None,            volume=item["latest_price"].volume if item["latest_price"] else None,            recorded_at=item["latest_price"].recorded_at if item["latest_price"] else None,        )        for item in stocks_data    ]@router.get("/stocks/{stock_id}", response_model=StockDetailResponse)def get_stock_detail(stock_id: int, db: Session = Depends(get_db)):    item = stock.get_stock_by_id(db, stock_id)    if not item:        raise HTTPException(status_code=404, detail="Stock not found")    latest_price = item.get("latest_price")    return StockDetailResponse(        id=item["stock"].id,        name=item["stock"].name,        symbol=item["stock"].symbol,        country=item["country"],        market=item["market"],        sector=item["sector"],        price=latest_price.price if latest_price else None,        volume=latest_price.volume if latest_price else None,        recorded_at=latest_price.recorded_at if latest_price else None,    )
+from fastapi import APIRouter, Depends, Query, HTTPException
+
+from app.models.stock import Stock
+from app.models.stock import StockPrice
+from app.models import Stock, Country, Market, Sector
+from pydantic import BaseModel
+from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.db.seed_data import insert_realtime_stock
+from app.schemas.stock import StockGraphResponse
+
+from app.db.session import get_db
+from app.schemas.stock import (
+    CountryResponse,
+    MarketResponse,
+    SectorResponse,
+    StockResponse,
+    StockReviewResponse,
+    StockSchema,
+    StockReviewCreate,
+    StockPriceResponse,
+    StockPredictionResponse,
+    StockDetailResponse,
+)
+from app.services import stock
+from app.core.security import get_current_user
+from app.models.user import User
+from app.services.stock import (
+    insert_realtime_stock,
+    get_stock_reviews,
+    create_stock_review,
+    get_filtered_stocks,
+)
+from app.models.stock import StockReview
+from typing import Optional, List
+from datetime import datetime
+
+router = APIRouter()
+
+
+@router.get("/countries", response_model=List[CountryResponse])
+def list_countries(db: Session = Depends(get_db)):
+    return stock.get_countries(db)
+
+
+class SymbolsRequest(BaseModel):
+    symbols: List[str]
+
+
+@router.get("/markets", response_model=List[MarketResponse])
+def list_markets(country_id: Optional[int] = None, db: Session = Depends(get_db)):
+    return stock.get_markets(db, country_id)
+
+
+@router.get("/sectors", response_model=List[SectorResponse])
+def list_sectors(db: Session = Depends(get_db)):
+    return stock.get_sectors(db)
+
+
+@router.get("/{stock_id}/graph", response_model=StockGraphResponse)
+def stock_graph_data(
+    stock_id: int, db: Session = Depends(get_db), limit: int = Query(50, gt=0)
+):
+    """
+    특정 주식의 가격 데이터 그래프 반환.
+    서비스에서 ApexCharts용 구조(candle, volume, ma5, ma10) 반환
+    """
+    return stock.get_stock_graph(db, stock_id, limit=limit)
+
+
+@router.get("/{stock_id}/predict", response_model=StockPredictionResponse)
+def stock_predict_get(stock_id: int, db: Session = Depends(get_db)):
+    return stock.predict_stock(db, stock_id, use_post=False)
+
+
+@router.post("/{stock_id}/predict", response_model=StockPredictionResponse)
+def stock_predict_post(stock_id: int, db: Session = Depends(get_db)):
+    return stock.predict_stock(db, stock_id, use_post=True)
+
+
+@router.get("/top_gainers")
+def top_gainers(limit: int = Query(10, gt=0), db: Session = Depends(get_db)):
+    return stock.get_top_gainers(db, limit=limit)
+
+    return stock.create_review(db, stock_id, data, current_user)
+
+
+@router.get("/search", response_model=List[StockSchema])
+def search_stocks(
+    query: str = Query(..., min_length=1),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, gt=0),
+    db: Session = Depends(get_db),
+):
+    return stock.search_stocks(db, query, skip, limit)
+
+
+@router.post("/realtime/bulk")
+def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db)):
+    if not request.symbols:
+        raise HTTPException(status_code=400, detail="symbols 리스트가 비어있습니다.")
+
+    results = []
+    for symbol in request.symbols:
+        print(f"Request에서 받은 심볼: {symbol}")  # 디버깅 로그
+        symbol = symbol.strip().upper()  # 공백 제거하고 대문자로 변환
+        print(f"정리된 심볼: {symbol}")  # 정리된 심볼 로그
+
+        try:
+            # 심볼 유효성 검사
+            if not symbol or symbol.lower() == "bulk":
+                print(f"유효하지 않은 심볼 발견: {symbol}")  # 유효하지 않은 심볼 로그
+                raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol}")
+
+            result = insert_realtime_stock(
+                db, symbol
+            )  # 실제 주식 데이터 처리 함수 호출
+            results.append(result)
+
+        except Exception as e:
+            print(f"심볼 {symbol} 처리 중 오류 발생: {str(e)}")  # 오류 로그
+            results.append({"symbol": symbol, "error": str(e)})
+
+    return {"status": "success", "results": results}
+
+
+@router.post("/realtime/{symbol}")
+def add_realtime_stock(symbol: str, db: Session = Depends(get_db)):
+    result = insert_realtime_stock(db, symbol.upper())  # 대문자 처리
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@router.post("/realtime")
+def insert_realtime_stocks_batch(db: Session = Depends(get_db)):
+    symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]  # 예시 종목
+    results = []
+    for symbol in symbols:
+        try:
+            result = insert_realtime_stock(db, symbol.upper())  # 대문자 처리
+            results.append(result)
+        except Exception as e:
+            results.append({"symbol": symbol, "error": str(e)})
+    return {"status": "success", "results": results}
+
+
+@router.get("/", response_model=List[StockDetailResponse])
+def list_stocks(
+    country_id: Optional[int] = Query(None),
+    market_id: Optional[int] = Query(None),
+    sector_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    stocks_data = get_filtered_stocks(db, country_id, market_id, sector_id)
+    return [
+        StockDetailResponse(
+            id=item["stock"].id,
+            name=item["stock"].name,
+            symbol=item["stock"].symbol,
+            country=item["country"],
+            market=item["market"],
+            sector=item["sector"],
+            price=item["latest_price"].price if item["latest_price"] else None,
+            volume=item["latest_price"].volume if item["latest_price"] else None,
+            recorded_at=(
+                item["latest_price"].recorded_at if item["latest_price"] else None
+            ),
+        )
+        for item in stocks_data
+    ]
+
+
+@router.get("/stocks", response_model=List[StockDetailResponse])
+def get_stocks(
+    country_id: Optional[int] = None,
+    market_id: Optional[int] = None,
+    sector_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    stocks_data = stock.get_stocks_list(db, country_id, market_id, sector_id)
+    return [
+        StockDetailResponse(
+            id=item["stock"].id,
+            name=item["stock"].name,
+            symbol=item["stock"].symbol,
+            country=item["country"],
+            market=item["market"],
+            sector=item["sector"],
+            price=item["latest_price"].price if item["latest_price"] else None,
+            volume=item["latest_price"].volume if item["latest_price"] else None,
+            recorded_at=(
+                item["latest_price"].recorded_at if item["latest_price"] else None
+            ),
+        )
+        for item in stocks_data
+    ]
+
+
+@router.get("/stocks/{stock_id}", response_model=StockDetailResponse)
+def get_stock_detail(stock_id: int, db: Session = Depends(get_db)):
+    item = stock.get_stock_by_id(db, stock_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Stock not found")
+
+    latest_price = item.get("latest_price")
+
+    return StockDetailResponse(
+        id=item["stock"].id,
+        name=item["stock"].name,
+        symbol=item["stock"].symbol,
+        country=item["country"],
+        market=item["market"],
+        sector=item["sector"],
+        price=latest_price.price if latest_price else None,
+        volume=latest_price.volume if latest_price else None,
+        recorded_at=latest_price.recorded_at if latest_price else None,
+    )
+
+
+@router.get("/{stock_id}/reviews", response_model=List[StockReviewResponse])
+def read_reviews(stock_id: int, db: Session = Depends(get_db)):
+    return get_stock_reviews(db, stock_id)
+
+
+@router.post("/{stock_id}/reviews", response_model=StockReviewResponse)
+def post_review(
+    stock_id: int,
+    data: StockReviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return create_stock_review(db, stock_id, data, current_user)

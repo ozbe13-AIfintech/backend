@@ -4,6 +4,7 @@ import yfinance as yf
 from app.models import Country, Market, Sector, Stock, StockPrice
 from app.db.session import SessionLocal
 
+
 def get_or_create(session: Session, model, defaults=None, **kwargs):
     """DB에 없으면 생성, 있으면 반환"""
     instance = session.query(model).filter_by(**kwargs).first()
@@ -17,6 +18,7 @@ def get_or_create(session: Session, model, defaults=None, **kwargs):
     session.commit()
     session.refresh(instance)
     return instance
+
 
 def insert_realtime_stock(session: Session, symbol: str) -> dict:
     """yfinance에서 실시간 데이터 가져와 DB에 삽입"""
@@ -46,7 +48,9 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
         sector_name = info.get("sector", "Unknown")
 
         # Country / Market / Sector
-        country = get_or_create(session, Country, name=country_name, code=country_name[:3])
+        country = get_or_create(
+            session, Country, name=country_name, code=country_name[:3]
+        )
         market = get_or_create(session, Market, name=market_name, country_id=country.id)
         sector = get_or_create(session, Sector, name=sector_name)
 
@@ -59,7 +63,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
                 country_id=country.id,
                 market_id=market.id,
                 sector_id=sector.id,
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
             )
             session.add(stock)
             session.commit()
@@ -74,7 +78,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
             low=low,
             close=close_price,
             volume=volume,
-            recorded_at=datetime.now()
+            recorded_at=datetime.now(),
         )
         session.add(stock_price)
         session.commit()
@@ -86,11 +90,13 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
         session.rollback()
         return {"symbol": symbol, "error": str(e)}
 
+
 def insert_bulk_stocks(session: Session, symbols: list):
     results = []
     for s in symbols:
         results.append(insert_realtime_stock(session, s))
     return results
+
 
 def seed_extended_data(db: Session):
     """국가, 시장, 섹터 거의 실제 수준으로 세팅"""
@@ -175,10 +181,46 @@ if __name__ == "__main__":
 
     # S&P500, NASDAQ 등 주요 심볼 수백 개 삽입 예시
     symbols = [
-        "AAPL","MSFT","GOOG","AMZN","TSLA","NFLX","META","NVDA","SPY","BABA",
-        "KO","JNJ","V","WMT","DIS","ORCL","INTC","CSCO","PYPL","ADBE",
-        "T","PFE","XOM","CVX","BP","RDS-A","GM","F","BA","MCD",
-        "SBUX","NKE","HD","LOW","CAT","DE","GE","IBM","MRK","ABT",
+        "AAPL",
+        "MSFT",
+        "GOOG",
+        "AMZN",
+        "TSLA",
+        "NFLX",
+        "META",
+        "NVDA",
+        "SPY",
+        "BABA",
+        "KO",
+        "JNJ",
+        "V",
+        "WMT",
+        "DIS",
+        "ORCL",
+        "INTC",
+        "CSCO",
+        "PYPL",
+        "ADBE",
+        "T",
+        "PFE",
+        "XOM",
+        "CVX",
+        "BP",
+        "RDS-A",
+        "GM",
+        "F",
+        "BA",
+        "MCD",
+        "SBUX",
+        "NKE",
+        "HD",
+        "LOW",
+        "CAT",
+        "DE",
+        "GE",
+        "IBM",
+        "MRK",
+        "ABT",
         # 필요하면 여기에 수백~수천 심볼 추가 가능
     ]
 

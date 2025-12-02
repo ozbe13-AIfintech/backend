@@ -1,8 +1,18 @@
-from sqlalchemy import Column, Integer, String, Boolean,Date, Float, DateTime,ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    Date,
+    Float,
+    DateTime,
+    ForeignKey,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
 from datetime import datetime
+
 
 class User(Base):
     __tablename__ = "users"
@@ -14,10 +24,13 @@ class User(Base):
     balance = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    identity_verification = relationship("IdentityVerification", uselist=False, back_populates="user")
+    identity_verification = relationship(
+        "IdentityVerification", uselist=False, back_populates="user"
+    )
     assets = relationship("UserAsset", back_populates="user")
     trades = relationship("Trade", back_populates="user")
     wishlist = relationship("UserWishlist", back_populates="user")
+    reviews = relationship("StockReview", back_populates="user")
 
 
 class IdentityVerification(Base):
