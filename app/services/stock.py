@@ -310,14 +310,7 @@ def create_stock_review(
     )
 
 
-def search_stocks(db: Session, query: str, skip: int = 0, limit: int = 50):
-    return (
-        db.query(Stock)
-        .filter((Stock.name.ilike(f"%{query}%")) | (Stock.ticker.ilike(f"%{query}%")))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+
 
 
 def get_or_create(session: Session, model, defaults=None, **kwargs):

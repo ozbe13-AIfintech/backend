@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
-
+from app.models import *
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError

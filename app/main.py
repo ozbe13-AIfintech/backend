@@ -13,6 +13,8 @@ from app.api.v1 import news
 from app.api.v1 import forex
 from dotenv import load_dotenv
 from app.db.base import Base
+from app.api.v1 import search
+from app.api.v1 import mbti
 
 load_dotenv()
 
@@ -47,7 +49,8 @@ app.include_router(trade_routes.router, prefix="/api/v1/trades", tags=["Trades"]
 app.include_router(ai_trading_routes)
 app.include_router(news.router, prefix="/api/v1/news", tags=["News"])
 app.include_router(forex.router, prefix="/api/v1/forex", tags=["Forex"])
-
+app.include_router(search.router,prefix="/api/v1/search", tags=["Search"])
+app.include_router(mbti.router,prefix="/api/v1/mbti", tags=["MBTI"])
 
 @app.get("/")
 def root():

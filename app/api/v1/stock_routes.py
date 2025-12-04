@@ -87,15 +87,6 @@ def top_gainers(limit: int = Query(10, gt=0), db: Session = Depends(get_db)):
     return stock.create_review(db, stock_id, data, current_user)
 
 
-@router.get("/search", response_model=List[StockSchema])
-def search_stocks(
-    query: str = Query(..., min_length=1),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, gt=0),
-    db: Session = Depends(get_db),
-):
-    return stock.search_stocks(db, query, skip, limit)
-
 
 @router.post("/realtime/bulk")
 def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db)):
