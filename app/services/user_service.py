@@ -156,35 +156,6 @@ def refresh_access_token(refresh_token: str):
     return {"access_token": new_access_token}
 
 
-def add_wishlist(db: Session, user_id: int, stock_id: int):
-    item = UserWishlist(user_id=user_id, stock_id=stock_id)
-
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-
-    return get_wishlist(db, user_id)
-
-
-def get_wishlist(db: Session, user_id: int):
-    items = db.query(UserWishlist).filter(UserWishlist.user_id == user_id).all()
-    return [{"stock_id": i.stock_id, "stock_name": i.stock.name} for i in items]
-
-
-def remove_wishlist_item(db: Session, user_id: int, stock_id: int):
-    item = (
-        db.query(UserWishlist)
-        .filter(UserWishlist.user_id == user_id, UserWishlist.stock_id == stock_id)
-        .first()
-    )
-
-    if not item:
-        raise HTTPException(404, "Wishlist item not found")
-
-    db.delete(item)
-    db.commit()
-    return {"msg": "Item removed from wishlist"}
-
 
 def update_user_profile(
     db: Session, user_id: int, data: UserUpdateRequest, current_user: User
@@ -244,3 +215,32 @@ def toggle_wishlist(db: Session, user: User, stock_id: int, favorite: bool) -> d
             db.delete(fav)
             db.commit()
     return {"stock_id": stock_id, "favorite": favorite}
+
+def add_wishlist(db: Session, user_id: int, stock_id: int):
+    item = UserWishlist(user_id=user_id, stock_id=stock_id)
+
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+
+    return get_wishlist(db, user_id)
+
+
+def get_wishlist(db: Session, user_id: int):
+    items = db.query(UserWishlist).filter(UserWishlist.user_id == user_id).all()
+    return [{"stock_id": i.stock_id, "stock_name": i.stock.name} for i in items]
+
+
+def remove_wishlist_item(db: Session, user_id: int, stock_id: int):
+    item = (
+        db.query(UserWishlist)
+        .filter(UserWishlist.user_id == user_id, UserWishlist.stock_id == stock_id)
+        .first()
+    )
+
+    if not item:
+        raise HTTPException(404, "Wishlist item not found")
+
+    db.delete(item)
+    db.commit()
+    return {"msg": "Item removed from wishlist"}

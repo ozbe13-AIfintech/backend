@@ -12,6 +12,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 
 
 class User(Base):
@@ -31,7 +32,7 @@ class User(Base):
     trades = relationship("Trade", back_populates="user")
     wishlist = relationship("UserWishlist", back_populates="user")
     reviews = relationship("StockReview", back_populates="user")
-
+    
 
 class IdentityVerification(Base):
     __tablename__ = "identity_verifications"
@@ -60,4 +61,6 @@ class UserWishlist(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="wishlist")
-    stock = relationship("Stock")
+    stock = relationship("Stock", back_populates="user_wishlist")
+
+    __table_args__ = (UniqueConstraint('user_id', 'stock_id', name='_user_stock_uc'),)

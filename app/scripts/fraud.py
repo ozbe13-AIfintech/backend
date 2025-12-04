@@ -1,24 +1,17 @@
 from app.models.fraud import FraudLog
-from app.models.stock import StockPrice
+from app.models.stock import Stock, StockPrice
 from sqlalchemy.orm import Session
-from typing import Optional, List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
+from app.db.session import SessionLocal
 
-
-
+# ---------------- Fraud 계산 함수 ----------------
 def determine_risk_level(risk_score: float) -> str:
     if risk_score >= 80:
         return "High"
     elif risk_score >= 40:
         return "Medium"
     return "Low"
-
-
-def get_fraud_logs_service(db: Session, stock_id: Optional[int] = None) -> List[FraudLog]:
-    query = db.query(FraudLog)
-    if stock_id:
-        query = query.filter(FraudLog.stock_id == stock_id)
-    return query.order_by(FraudLog.created_at.desc()).all()
 
 
 def detect_fraud_service(
@@ -39,10 +32,9 @@ def detect_fraud_service(
         risk_score = 0
         reason = []
 
-        price_change = None
-        volume_change = None
+        price_change: Optional[float] = None
+        volume_change: Optional[float] = None
 
-        # 최근 2개 가격 비교
         if len(prices) >= 2:
             last = prices[0]
             prev = prices[1]
@@ -82,21 +74,51 @@ def detect_fraud_service(
         db.commit()
         db.refresh(fraud_log)
 
-        return fraud_log, determine_risk_level(risk_score)
+        risk_level = determine_risk_level(risk_score)
+        return fraud_log, risk_level
 
     except Exception as e:
         db.rollback()
-        print(f"[ERROR] {e}")
+        print(f"[ERROR] 오류 발생: {e}")
         return None, "Low"
 
 
-def detect_multiple_fraud_service(
-    db: Session, stock_ids: List[int], user_id: int
-) -> List[FraudLog]:
+def detect_multiple_fraud_service(db: Session, stock_ids: List[int], user_id: int) -> List[FraudLog]:
     fraud_logs = []
     for stock_id in stock_ids:
         fraud_log, _ = detect_fraud_service(db, stock_id, user_id)
         if fraud_log:
             fraud_logs.append(fraud_log)
     return fraud_logs
+
+# ---------------- 배치 실행 함수 ----------------
+def run_fraud_batch(user_id: int = 1):
+    db: Session = SessionLocal()
+    try:
+        # 모든 주식 ID 조회
+        stock_ids = [s.id for s in db.query(Stock).all()]
+        print(f"[INFO] Total stocks: {len(stock_ids)}")
+
+        # Fraud 탐지 실행
+        fraud_logs = detect_multiple_fraud_service(db, stock_ids, user_id)
+        print(f"[INFO] Fraud detection completed. Logs created: {len(fraud_logs)}")
+
+        for log in fraud_logs:
+            print(
+                f"- Stock {log.stock_id} | Risk {log.risk_score} | Reason: {log.reason} | "
+                f"Price Change: {log.price_change} | Volume Change: {log.volume_change}"
+            )
+
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Transaction rolled back due to: {e}")
+
+    finally:
+        db.close()
+
+
+# ---------------- 실행 ----------------
+if __name__ == "__main__":
+    run_fraud_batch(user_id=1)
+
 

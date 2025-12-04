@@ -34,6 +34,33 @@ class MessageResponse(BaseModel):
     msg: str
 
 
+
+
+class UserUpdateRequest(BaseModel):
+    nickname: Optional[str]
+    phone: Optional[str]
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    nickname: str
+    user_id: int
+
+
+class WishlistAddRequest(BaseModel):
+    stock_id: int
+    favorite: bool
+class WishlistItem(BaseModel):
+    stock_id: int
+    stock_name: str
+class WishlistResponse(BaseModel):
+    user_id: int
+    wishlist: List[WishlistItem]
+
+
+
+
 class UserWishlistBase(BaseModel):
     stock_id: int
 
@@ -49,30 +76,3 @@ class UserWishlist(UserWishlistBase):
 
     class Config:
         from_attributes = True
-
-
-class UserUpdateRequest(BaseModel):
-    nickname: Optional[str]
-    phone: Optional[str]
-
-
-class WishlistItem(BaseModel):
-    stock_id: int
-    stock_name: str
-
-
-class WishlistResponse(BaseModel):
-    user_id: int
-    wishlist: List[WishlistItem]
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    nickname: str
-    user_id: int
-
-
-class WishlistAddRequest(BaseModel):
-    user_id: int
-    stock_id: int

@@ -73,27 +73,6 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
     return user_service.refresh_access_token(refresh_token)
 
 
-@router.post("/wishlist", response_model=WishlistResponse)
-def add_to_wishlist(data: WishlistAddRequest, db: Session = Depends(get_db)):
-    wishlist = user_service.add_wishlist(db, data.user_id, data.stock_id)
-    return WishlistResponse(user_id=data.user_id, wishlist=wishlist)
-
-
-@router.put("/{user_id}", response_model=UserResponse)
-def update_user_profile(
-    user_id: int,
-    data: UserUpdateRequest,
-    current_user: User = Security(get_current_user),
-    db: Session = Depends(get_db),
-):
-    updated = user_service.update_user_profile(db, user_id, data, current_user)
-    return UserResponse(id=updated.id, nickname=updated.nickname, phone=updated.phone)
-
-
-@router.get("/{user_id}/wishlist", response_model=WishlistResponse)
-def get_user_wishlist(user_id: int, db: Session = Depends(get_db)):
-    wishlist = user_service.get_wishlist(db, user_id)
-    return WishlistResponse(user_id=user_id, wishlist=wishlist)
 
 
 @router.get("/{user_id}", summary="Get user profile")
@@ -115,12 +94,37 @@ def get_wishlist_status_route(
     return {"is_favorite": is_fav}
 
 
-# POST /api/v1/wishlist - 찜/해제
-@router.post("/wishlist")
+
+@router.post("/wishlist", response_model=WishlistResponse, summary="찜/해제 토글")
 def toggle_wishlist_route(
-    stock_id: int,
-    favorite: bool,
+    data: WishlistAddRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return toggle_wishlist(db, current_user, stock_id, favorite)
+    """
+    body:
+    {
+        "stock_id": 1,
+        "favorite": true
+    }
+    """
+    result = user_service.toggle_wishlist(db, current_user, data.stock_id, data.favorite)
+    wishlist = user_service.get_wishlist(db, current_user.id)
+    return WishlistResponse(user_id=current_user.id, wishlist=wishlist)
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+def update_user_profile(
+    user_id: int,
+    data: UserUpdateRequest,
+    current_user: User = Security(get_current_user),
+    db: Session = Depends(get_db),
+):
+    updated = user_service.update_user_profile(db, user_id, data, current_user)
+    return UserResponse(id=updated.id, nickname=updated.nickname, phone=updated.phone)
+
+
+@router.get("/{user_id}/wishlist", response_model=WishlistResponse)
+def get_user_wishlist(user_id: int, db: Session = Depends(get_db)):
+    wishlist = user_service.get_wishlist(db, user_id)
+    return WishlistResponse(user_id=user_id, wishlist=wishlist)
