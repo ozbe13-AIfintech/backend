@@ -1,4 +1,13 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import text
+from datetime import datetime
+from typing import List
+import requests
+from sqlalchemy import text, bindparam
+
+from sqlalchemy import select
+
+import yfinance as yf
 from app.models.index import Index, IndexValue, index_component
 from app.schemas.index import (
     IndexSchema,
@@ -6,12 +15,20 @@ from app.schemas.index import (
     IndexGraphResponse,
     IndexGraphComponent,
 )
-from typing import List
-from sqlalchemy.sql import text
-from sqlalchemy.orm import Session
-from app.models.index import Index, IndexValue
-from datetime import datetime
-import requests
+from sqlalchemy.orm import Session, joinedload
+
+YAHOO_INDEX_SYMBOLS = {
+    "KOSPI": "^KS11",
+    "NASDAQ": "^IXIC",
+    "S&P500": "^GSPC",
+    "DOWJONES": "^DJI",
+    "FTSE100": "^FTSE",
+    "NIKKEI225": "^N225",
+    "HANGSENG": "^HSI",
+    "DAX": "^GDAXI",
+    "CAC40": "^FCHI"
+}
+
 def create_index(db: Session, name: str, market_id: int, components: dict):
     idx = Index(name=name, market_id=market_id)
     db.add(idx)
@@ -24,9 +41,9 @@ def create_index(db: Session, name: str, market_id: int, components: dict):
                 index_id=idx.id, stock_id=stock_id, weight=weight
             )
         )
+
     db.commit()
     return idx
-
 
 def update_index(db: Session, idx: Index, name: str, market_id: int, components: dict):
     idx.name = name
@@ -34,48 +51,58 @@ def update_index(db: Session, idx: Index, name: str, market_id: int, components:
     db.commit()
 
     db.execute(index_component.delete().where(index_component.c.index_id == idx.id))
+
     for stock_id, weight in components.items():
         db.execute(
             index_component.insert().values(
                 index_id=idx.id, stock_id=stock_id, weight=weight
             )
         )
+
     db.commit()
     db.refresh(idx)
     return idx
 
-
 def get_index_detail(db: Session, index_id: int) -> IndexSchema:
-    # Index 모델에서 해당 index_id에 대한 데이터 조회
-    idx = db.query(Index).filter(Index.id == index_id).first()
+    idx = (
+        db.query(Index)
+        .options(joinedload(Index.values), joinedload(Index.components))
+        .filter(Index.id == index_id)
+        .first()
+    )
     if not idx:
         raise ValueError("Index not found")
 
-    # 기존 SQL 쿼리 텍스트를 text()로 감싸서 실행
-    comp_query = db.execute(
-        text("SELECT stock_id, weight FROM index_component WHERE index_id = :index_id"),
+    # index_component 테이블에서 weight를 한 번에 조회
+    comp_rows = db.execute(
+        "SELECT stock_id, weight FROM index_component WHERE index_id = :index_id",
         {"index_id": idx.id},
     ).fetchall()
+    components = {row[0]: row[1] for row in comp_rows}
 
-    # 쿼리 결과에서 stock_id와 weight를 dictionary 형태로 변환
-    components = {c[0]: c[1] for c in comp_query}  # c[0]은 stock_id, c[1]은 weight
-
-    # Index에 연결된 IndexValue ORM 관계를 통해 데이터 조회
     values = [
-        IndexValueSchema(value=v.value, recorded_at=v.recorded_at) for v in idx.values
+        IndexValueSchema(
+            value=v.value,
+            recorded_at=v.recorded_at,
+            change_percent=v.change_percent
+        )
+        for v in idx.values
     ]
 
-    # IndexSchema를 반환
     return IndexSchema(
         id=idx.id,
         name=idx.name,
+        symbol=idx.symbol,
         market_id=idx.market_id,
+        current_value=idx.current_value,
+        change=idx.change,
         components=components,
         values=values,
     )
 
 def get_index_graph(db: Session, index_id: int) -> IndexGraphResponse:
     idx = db.query(Index).filter(Index.id == index_id).first()
+
     if not idx:
         raise ValueError("Index not found")
 
@@ -84,12 +111,13 @@ def get_index_graph(db: Session, index_id: int) -> IndexGraphResponse:
     y_values = [v.value for v in values_sorted]
 
     comp_query = db.execute(
-        "SELECT stock_id, weight FROM index_component WHERE index_id=:idx",
-        {"idx": idx.id},
+        text("SELECT stock_id, weight FROM index_component WHERE index_id = :index_id"),
+        {"index_id": idx.id},
     ).fetchall()
-    comp_weights = {c.stock_id: c.weight for c in comp_query}
 
-    components: List[IndexGraphComponent] = [
+    comp_weights = {c[0]: c[1] for c in comp_query}
+
+    components = [
         IndexGraphComponent(id=s.id, name=s.name, weight=comp_weights.get(s.id, 0.0))
         for s in idx.components
     ]
@@ -101,54 +129,148 @@ def get_index_graph(db: Session, index_id: int) -> IndexGraphResponse:
         graph={"dates": dates, "values": y_values},
         components=components,
     )
+def _get_previous_index_value(db: Session, index_value: IndexValue):
+    previous_record = (
+        db.query(IndexValue)
+        .filter(IndexValue.index_id == index_value.index_id)
+        .filter(IndexValue.recorded_at < index_value.recorded_at)
+        .order_by(IndexValue.recorded_at.desc())
+        .first()
+    )
 
-def fetch_index_data_from_api(index_symbol: str):
-    # API URL (예시: 인덱스 데이터 API)
-    url = f"https://api.example.com/indices/{index_symbol}"
+    return previous_record.value if previous_record else None
 
-    # API 호출
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()  # API에서 받은 JSON 데이터를 반환
+
+def save_index_value(db: Session, index_id: int, value: float):
+    # IndexValue를 저장할 때 index_id가 제대로 연결되어 있는지 확인
+    index_value = IndexValue(
+        index_id=index_id,
+        value=value,
+        recorded_at=datetime.utcnow()
+    )
+    db.add(index_value)
+    db.commit()
+    db.refresh(index_value)
+
+    # 변화율 계산
+    calculate_change_percent(db, index_value)
+    db.commit()
+
+    return index_value
+
+def calculate_change_percent(db: Session, index_value: IndexValue):
+    previous_value = _get_previous_index_value(db, index_value)
+
+    # 이전 값이 없거나 이전 값이 0일 때는 변화율을 0으로 설정
+    if previous_value and previous_value != 0:
+        index_value.change_percent = (
+            (index_value.value - previous_value) / previous_value * 100
+        )
     else:
-        return None  # 실패 시 None 반환
+        index_value.change_percent = 0.0
 
 
-def save_index_data_to_db(db: Session, index_data: dict, index_symbol: str):
-    # 인덱스 데이터 파싱
-    index_name = index_data['name']
-    index_value = index_data['value']
+def fetch_index_data_from_yahoo(symbol: str):
+    """Yahoo Finance에서 인덱스 데이터 가져오기"""
+    ticker = yf.Ticker(symbol)
+    hist = ticker.history(period="1d")
+    if hist.empty:
+        print(f"[WARNING] {symbol} 데이터 없음")
+        return None
+    value = hist['Close'].iloc[-1]  # FutureWarning 방지
+    return float(value)
 
-    # Index 테이블에 저장
-    index = Index(
-        name=index_name,
-        symbol=index_symbol,
-        market_id=1  # 예시로 1번 마켓 ID를 사용
-    )
-    db.add(index)
-    db.commit()
+def save_multiple_indices_from_api(db: Session, symbols: dict = None):
+    if symbols is None:
+        symbols = YAHOO_INDEX_SYMBOLS
 
-    # IndexValue 테이블에 저장
-    index_value_obj = IndexValue(
-        index_id=index.id,
-        value=index_value,
-        recorded_at=datetime.utcnow()  # 현재 시간으로 기록
-    )
-    db.add(index_value_obj)
-    db.commit()
+    saved_indices = []
 
-    return index
+    try:
+        for name, yf_symbol in symbols.items():
+            value = fetch_index_data_from_yahoo(yf_symbol)
+            if value is None:
+                print(f"[WARNING] {name} 데이터 가져오기 실패")
+                continue
+
+            # Index 조회 또는 새로 생성
+            idx = db.query(Index).filter((Index.symbol == yf_symbol) | (Index.name == name)).first()
+            if not idx:
+                idx = Index(name=name, symbol=yf_symbol, market_id=1, current_value=value, change=0.0)
+                db.add(idx)
+                db.flush()  # idx.id를 바로 사용하기 위해 flush
+            else:
+                idx.current_value = value
+                idx.name = name
+
+            # IndexValue 생성
+            index_value_obj = IndexValue(
+                index_id=idx.id,
+                value=value,
+                recorded_at=datetime.utcnow()
+            )
+            db.add(index_value_obj)
+
+            # 변화율 계산 (메모리에서)
+            calculate_change_percent(db, index_value_obj)
+
+            saved_indices.append(idx)
+
+        # 모든 작업 끝난 후 한 번만 commit
+        db.commit()
+        print(f"[INFO] {len(saved_indices)}개 인덱스 저장 완료")
+
+    except Exception as e:
+        db.rollback()  # 문제 발생 시 롤백
+        print(f"[ERROR] 인덱스 저장 중 오류: {e}")
+        raise
+
+    return saved_indices
 
 
-def get_index_detail_from_api_and_save(db: Session, index_symbol: str):
-    # API에서 데이터 가져오기
-    index_data = fetch_index_data_from_api(index_symbol)
 
-    if index_data is None:
-        raise ValueError(f"Failed to fetch data for {index_symbol} from the API.")
 
-    # DB에 저장
-    index = save_index_data_to_db(db, index_data, index_symbol)
+def list_indices_service(db) -> List[IndexSchema]:
+    indices = db.query(Index).options(joinedload(Index.values)).all()
+    if not indices:
+        return []
 
-    # 저장된 데이터 반환
-    return index
+    index_ids = [idx.id for idx in indices]
+
+    # index_component에서 components를 직접 조회
+    comp_rows = db.execute(
+        select(
+            index_component.c.index_id,
+            index_component.c.stock_id,
+            index_component.c.weight
+        ).where(index_component.c.index_id.in_(index_ids))
+    ).fetchall()
+
+    comp_map = {}
+    for row in comp_rows:
+        idx_id, stock_id, weight = row
+        comp_map.setdefault(idx_id, {})[stock_id] = weight
+
+    result = []
+    for idx in indices:
+        values = [
+            IndexValueSchema(
+                value=v.value,
+                recorded_at=v.recorded_at,
+                change_percent=v.change_percent
+            )
+            for v in idx.values
+        ]
+        idx_schema = IndexSchema(
+            id=idx.id,
+            name=idx.name,
+            symbol=idx.symbol,
+            market_id=idx.market_id,
+            current_value=idx.current_value,
+            change=idx.change,
+            components=comp_map.get(idx.id, {}),  # weight 정보 반영
+            values=values,
+        )
+        result.append(idx_schema)
+
+    return result

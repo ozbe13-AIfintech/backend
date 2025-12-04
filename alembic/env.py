@@ -8,6 +8,7 @@ from alembic import context
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.db.base import Base
+from app.models.forex import ExchangeRate, ExchangeRateHistory
 
 
 from app.models import *

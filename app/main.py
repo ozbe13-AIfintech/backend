@@ -12,10 +12,13 @@ from app.api.v1.ai_trading_routes import router as ai_trading_routes
 from app.api.v1 import news
 from app.api.v1 import forex
 from dotenv import load_dotenv
+from app.db.base import Base
 
 load_dotenv()
 
 app = FastAPI(title="AI FinTech API")
+
+
 
 origins = [
     "http://localhost:5173",

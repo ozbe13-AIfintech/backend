@@ -1,15 +1,16 @@
-from pydantic import BaseModel
-from typing import List, Dict
+from pydantic import BaseModel, Field
+from typing import List, Dict, Union
 from datetime import datetime
+
 
 
 class IndexValueSchema(BaseModel):
     value: float
     recorded_at: datetime
+    change_percent: float
 
     class Config:
-        from_attributes = True
-
+        orm_mode = True
 
 class IndexBase(BaseModel):
     name: str
@@ -17,20 +18,26 @@ class IndexBase(BaseModel):
 
 
 class IndexCreate(IndexBase):
-    components: Dict[int, float] = {}
+    components: Dict[int, float] = Field(default_factory=dict)
 
 
 class IndexUpdate(IndexBase):
-    components: Dict[int, float] = {}
+    components: Dict[int, float] = Field(default_factory=dict)
 
 
-class IndexSchema(IndexBase):
+class IndexSchema(BaseModel):
     id: int
-    components: Dict[int, float] = {}
-    values: List[IndexValueSchema] = []
+    name: str
+    symbol: str                # 여기에 추가
+    market_id: int
+    current_value: float       # 여기에 추가
+    change: float
+    values: List[IndexValueSchema]
+    components: Dict           # 필요에 따라 구조 조정
 
-    class Config:
-        from_attributes = True
+    class MyModel(BaseModel):
+        class Config:
+            from_attributes = True
 
 
 class IndexGraphComponent(BaseModel):
@@ -43,5 +50,5 @@ class IndexGraphResponse(BaseModel):
     index_id: int
     index_name: str
     market_id: int
-    graph: Dict[str, List[float | str]]
+    graph: Dict[str, List[Union[float, str]]]
     components: List[IndexGraphComponent]

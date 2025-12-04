@@ -3,7 +3,6 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 
-
 index_component = Table(
     "index_component",
     Base.metadata,
@@ -12,20 +11,21 @@ index_component = Table(
     Column("weight", Float),
 )
 
-
 class Index(Base):
     __tablename__ = "index"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
+    symbol = Column(String, unique=True, nullable=False)
+    # 추가
     market_id = Column(Integer, ForeignKey("markets.id"))
-    current_value = Column(Float)
-    change = Column(Float)
+    current_value = Column(Float, default=0.0)      # 권장
+    change = Column(Float, default=0.0)             # 권장
+
     values = relationship("IndexValue", back_populates="index")
     components = relationship(
         "Stock", secondary=index_component, back_populates="indices"
     )
-
 
 class IndexValue(Base):
     __tablename__ = "index_value"
@@ -34,9 +34,9 @@ class IndexValue(Base):
     index_id = Column(Integer, ForeignKey("index.id"))
     value = Column(Float)
     recorded_at = Column(DateTime, default=datetime.utcnow)
+    change_percent = Column(Float, default=0.0)      # 수정
 
     index = relationship("Index", back_populates="values")
-
 
 from app.models.stock import Stock
 

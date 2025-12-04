@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime
-from app.db.base import Base
+
 from datetime import datetime
+from app.db.base import Base
+
 
 
 class ExchangeRate(Base):
