@@ -1,40 +1,39 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.services.payment_service import create_payment_intent, handle_webhook_event
+from pydantic import BaseModel, Field
 from app.db.session import get_db
-import stripe
-import os
+from app.models.user import User
+from app.core.security import get_current_user
+from app.services.payment_service import deposit_to_user
 
 router = APIRouter()
 
+class DepositRequest(BaseModel):
+    amount: float = Field(..., gt=0)
+    card_number: str = Field(..., min_length=12, max_length=19)
+    expiry_date: str
+    cvc: str
 
-class PaymentCreate(BaseModel):
-    amount: float
-    currency: str = "usd"
+@router.post("/deposit")
+def deposit(
+    data: DepositRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    balance = deposit_to_user(
+        db=db,
+        user=current_user,
+        amount=data.amount,
+        card_number=data.card_number,
+        expiry_date=data.expiry_date,
+        cvc=data.cvc
+    )
+    return {"msg": f"{data.amount}원이 충전되었습니다.", "balance": balance}
 
+@router.get("/balance")
+def get_balance(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return {"balance": current_user.balance}
 
-@router.post("/create")
-def create_payment(payment: PaymentCreate):
-    client_secret = create_payment_intent(payment.amount, payment.currency)
-    return {"client_secret": client_secret}
-
-
-@router.post("/webhook")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
-
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
-    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload=payload, sig_header=sig_header, secret=endpoint_secret
-        )
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
-
-    result = handle_webhook_event(event, db)
-    return result

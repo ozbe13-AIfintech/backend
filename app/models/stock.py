@@ -11,6 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+from sqlalchemy import BigInteger
 
 
 class Country(Base):
@@ -76,6 +77,15 @@ class StockPrice(Base):
     recorded_at = Column(DateTime, nullable=False)
 
     stock = relationship("Stock", back_populates="prices")
+
+    @classmethod
+    def get_latest_price(cls, db_session, stock_id: int):
+        return (
+            db_session.query(cls)
+            .filter(cls.stock_id == stock_id)
+            .order_by(cls.recorded_at.desc())
+            .first()
+        )
 
 
 class StockPrediction(Base):

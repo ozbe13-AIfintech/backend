@@ -1,8 +1,12 @@
+# app/schemas/trade.py
 from pydantic import BaseModel
 from datetime import datetime
 
+class TradeRequest(BaseModel):
+    stock_id: int
+    quantity: int
 
-class Trade(BaseModel):
+class TradeResponse(BaseModel):
     id: int
     user_id: int
     stock_id: int
@@ -12,19 +16,7 @@ class Trade(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
-
-
-class TradeResponse(BaseModel):
-    stock_id: int
-    action: str
-    quantity: int
-    price: float
-    total_price: float
-
-    class Config:
-        from_attributes = True
-
+        orm_mode = True
 
 class TradeHistoryResponse(BaseModel):
     id: int
@@ -36,4 +28,13 @@ class TradeHistoryResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+class OwnedStockResponse(BaseModel):
+    id: int
+    name: str
+    symbol: str
+    quantity: int
+    avg_price: float
+    current_price: float  # 필요하면 실시간 시세 포함
+

@@ -26,5 +26,6 @@ class UserAsset(Base):
     quantity = Column(Integer, default=0)
     avg_price = Column(Float, default=0.0)
 
+
     user = relationship("User", back_populates="assets")
     stock = relationship("Stock")
