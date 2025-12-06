@@ -8,13 +8,14 @@ from app.api.v1 import index_routes
 from app.api.v1 import payment_routes
 from app.api.v1 import sentiment_routes
 from app.api.v1 import trade_routes
-from app.api.v1.ai_trading_routes import router as ai_trading_routes
+from app.api.v1 import ai_trading_routes
 from app.api.v1 import news
 from app.api.v1 import forex
 from dotenv import load_dotenv
 from app.db.base import Base
 from app.api.v1 import search
 from app.api.v1 import mbti
+from app.api.v1 import news
 
 load_dotenv()
 
@@ -46,7 +47,7 @@ app.include_router(
     sentiment_routes.router, prefix="/api/v1/sentiment", tags=["Sentiment"]
 )
 app.include_router(trade_routes.router, prefix="/api/v1/trades", tags=["Trades"])
-app.include_router(ai_trading_routes)
+app.include_router(ai_trading_routes.router,prefix="/api/v1/ai_trading_routes",tags=["AI_trading"])
 app.include_router(news.router, prefix="/api/v1/news", tags=["News"])
 app.include_router(forex.router, prefix="/api/v1/forex", tags=["Forex"])
 app.include_router(search.router,prefix="/api/v1/search", tags=["Search"])

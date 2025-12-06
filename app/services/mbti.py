@@ -63,7 +63,7 @@ def get_mbti_result(db: Session, user_id: int):
         "INTJ": {"stocks": ["엔비디아", "ASML"], "etf": ["SOXX"], "desc": "미래기술 투자자."},
         "ISTP": {"stocks": ["현대모비스", "한국항공우주"], "etf": ["기계장비 ETF"], "desc": "실전형 투자자."},
         "ISFP": {"stocks": ["아모레", "F&F"], "etf": ["소비재 ETF"], "desc": "감각적 트렌드 투자."},
-        "INFP": {"stocks": ["펄어비스", "하이브"], "etf": ["KPOP ETF"], "desc": "스토리 중시 투자자."},
+        "INFP": {"stocks": ["펄어비스", "하이브"], "etf": ["KPOP ETF"], "desc": "논리는 갖다 팔아 버린 유동성."},
         "INTP": {"stocks": ["퀄컴", "삼성SDI"], "etf": ["2차전지 ETF"], "desc": "이론 분석형 투자자."},
         "ESTP": {"stocks": ["포스코퓨처엠", "L&F"], "etf": ["KODEX 레버리지"], "desc": "단타·상승장 강함."},
         "ESFP": {"stocks": ["카카오게임즈", "JYP"], "etf": ["엔터 ETF"], "desc": "재미 중시 투자."},

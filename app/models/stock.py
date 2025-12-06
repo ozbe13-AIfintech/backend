@@ -60,6 +60,7 @@ class Stock(Base):
     sentiments = relationship("SocialSentiment", back_populates="stock")
     fraud_logs = relationship("FraudLog", back_populates="stock")
     user_wishlist = relationship("UserWishlist", back_populates="stock")
+    news = relationship("News", back_populates="stock")
 
 class StockPrice(Base):
     __tablename__ = "stock_prices"
@@ -122,3 +123,7 @@ class SocialSentiment(Base):
     recorded_at = Column(DateTime, server_default=func.now())
 
     stock = relationship("Stock", back_populates="sentiments")
+
+
+    def __repr__(self):
+      return f"<SocialSentiment(stock_id={self.stock_id}, score={self.sentiment_score}, source={self.source})>"
