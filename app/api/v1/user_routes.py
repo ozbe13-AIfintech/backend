@@ -73,8 +73,6 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
     return user_service.refresh_access_token(refresh_token)
 
 
-
-
 @router.get("/{user_id}", summary="Get user profile")
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     return user_service.get_user_profile(db, user_id)
@@ -94,7 +92,6 @@ def get_wishlist_status_route(
     return {"is_favorite": is_fav}
 
 
-
 @router.post("/wishlist", response_model=WishlistResponse, summary="찜/해제 토글")
 def toggle_wishlist_route(
     data: WishlistAddRequest,
@@ -108,7 +105,9 @@ def toggle_wishlist_route(
         "favorite": true
     }
     """
-    result = user_service.toggle_wishlist(db, current_user, data.stock_id, data.favorite)
+    result = user_service.toggle_wishlist(
+        db, current_user, data.stock_id, data.favorite
+    )
     wishlist = user_service.get_wishlist(db, current_user.id)
     return WishlistResponse(user_id=current_user.id, wishlist=wishlist)
 

@@ -9,6 +9,7 @@ from app.models.stock import SocialSentiment
 from app.schemas.trade import TradeResponse
 from fastapi import HTTPException
 
+
 def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
     """
     로그인한 사용자의 AI 자동 거래 실행
@@ -20,8 +21,14 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
     executed_trades = []
 
     for stock_id in stocks_to_trade:
-        sentiments = db.query(SocialSentiment).filter(SocialSentiment.stock_id == stock_id).all()
-        avg_sentiment = sum([s.sentiment_score for s in sentiments]) / len(sentiments) if sentiments else 0
+        sentiments = (
+            db.query(SocialSentiment).filter(SocialSentiment.stock_id == stock_id).all()
+        )
+        avg_sentiment = (
+            sum([s.sentiment_score for s in sentiments]) / len(sentiments)
+            if sentiments
+            else 0
+        )
 
         if avg_sentiment > 0.2:
             quantity = 10  # BUY
@@ -48,16 +55,29 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
         db.refresh(trade)
 
         # UserAsset 업데이트
-        asset = db.query(UserAsset).filter(UserAsset.user_id == user_id, UserAsset.stock_id == stock_id).first()
+        asset = (
+            db.query(UserAsset)
+            .filter(UserAsset.user_id == user_id, UserAsset.stock_id == stock_id)
+            .first()
+        )
         if not asset:
-            asset = UserAsset(user_id=user_id, stock_id=stock_id, avg_price=price, quantity=0)
+            asset = UserAsset(
+                user_id=user_id, stock_id=stock_id, avg_price=price, quantity=0
+            )
             db.add(asset)
 
         if quantity > 0:  # BUY
-            asset.avg_price = ((asset.avg_price * asset.quantity) + total_price) / (asset.quantity + quantity) if asset.quantity else price
+            asset.avg_price = (
+                ((asset.avg_price * asset.quantity) + total_price)
+                / (asset.quantity + quantity)
+                if asset.quantity
+                else price
+            )
             asset.quantity += quantity
         else:  # SELL
-            asset.quantity = max(asset.quantity + quantity, 0)  # quantity < 0 이므로 더하기
+            asset.quantity = max(
+                asset.quantity + quantity, 0
+            )  # quantity < 0 이므로 더하기
 
         executed_trades.append(
             TradeResponse(
@@ -80,5 +100,10 @@ def get_ai_trading_history_service(db: Session, user_id: int) -> List[Trade]:
     """
     사용자의 AI 거래 히스토리 조회
     """
-    trades = db.query(Trade).filter(Trade.user_id == user_id).order_by(Trade.created_at.desc()).all()
+    trades = (
+        db.query(Trade)
+        .filter(Trade.user_id == user_id)
+        .order_by(Trade.created_at.desc())
+        .all()
+    )
     return trades

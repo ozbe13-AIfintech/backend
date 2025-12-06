@@ -87,7 +87,6 @@ def top_gainers(limit: int = Query(10, gt=0), db: Session = Depends(get_db)):
     return stock.create_review(db, stock_id, data, current_user)
 
 
-
 @router.post("/realtime/bulk")
 def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db)):
     if not request.symbols:

@@ -5,7 +5,6 @@ from typing import Optional, List, Tuple
 import numpy as np
 
 
-
 def determine_risk_level(risk_score: float) -> str:
     if risk_score >= 80:
         return "High"
@@ -14,7 +13,9 @@ def determine_risk_level(risk_score: float) -> str:
     return "Low"
 
 
-def get_fraud_logs_service(db: Session, stock_id: Optional[int] = None) -> List[FraudLog]:
+def get_fraud_logs_service(
+    db: Session, stock_id: Optional[int] = None
+) -> List[FraudLog]:
     query = db.query(FraudLog)
     if stock_id:
         query = query.filter(FraudLog.stock_id == stock_id)
@@ -48,14 +49,18 @@ def detect_fraud_service(
             prev = prices[1]
 
             if prev.price > 0:
-                price_change = abs(float(last.price) - float(prev.price)) / float(prev.price)
+                price_change = abs(float(last.price) - float(prev.price)) / float(
+                    prev.price
+                )
                 price_change = float(price_change)
                 if price_change > 0.1:
                     risk_score += 50
                     reason.append("Price spike detected")
 
             if prev.volume:
-                volume_change = (float(last.volume) - float(prev.volume)) / float(prev.volume)
+                volume_change = (float(last.volume) - float(prev.volume)) / float(
+                    prev.volume
+                )
                 volume_change = float(volume_change)
                 if volume_change > 2:
                     risk_score += 50
@@ -99,4 +104,3 @@ def detect_multiple_fraud_service(
         if fraud_log:
             fraud_logs.append(fraud_log)
     return fraud_logs
-

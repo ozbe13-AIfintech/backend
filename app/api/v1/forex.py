@@ -7,12 +7,14 @@ from app.services.forex import get_exchange_rate, get_multiple_exchange_rates
 
 router = APIRouter()
 
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
 
 @router.get("/", response_model=ExchangeRateResponse)
 def exchange_rate(
@@ -21,6 +23,7 @@ def exchange_rate(
     db: Session = Depends(get_db),
 ):
     return get_exchange_rate(base, target, db)
+
 
 @router.get("/list", response_model=List[ExchangeRateResponse])
 def list_exchange_rates(

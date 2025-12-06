@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class ExchangeRateResponse(BaseModel):
     base_currency: str
     target_currency: str
@@ -14,4 +15,3 @@ class ExchangeRateResponse(BaseModel):
 
     class Config:
         from_attributes = True
-

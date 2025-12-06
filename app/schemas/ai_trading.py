@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class TradeResponse(BaseModel):
     id: int
     user_id: int

@@ -32,9 +32,9 @@ def main():
             print(f"\n--- {sym} 뉴스 가져오는 중... ---")
             news_list = fetch_and_save_news(
                 db,
-                query=sym,   # <-- 핵심!
+                query=sym,  # <-- 핵심!
                 limit=20,
-                language="en"  # 해외 기업은 영어 뉴스가 훨씬 많음
+                language="en",  # 해외 기업은 영어 뉴스가 훨씬 많음
             )
             print(f"{sym}: {len(news_list)}개 저장됨")
             total_saved += len(news_list)
@@ -44,4 +44,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -62,6 +62,7 @@ class Stock(Base):
     user_wishlist = relationship("UserWishlist", back_populates="stock")
     news = relationship("News", back_populates="stock")
 
+
 class StockPrice(Base):
     __tablename__ = "stock_prices"
     id = Column(Integer, primary_key=True)
@@ -124,6 +125,5 @@ class SocialSentiment(Base):
 
     stock = relationship("Stock", back_populates="sentiments")
 
-
     def __repr__(self):
-      return f"<SocialSentiment(stock_id={self.stock_id}, score={self.sentiment_score}, source={self.source})>"
+        return f"<SocialSentiment(stock_id={self.stock_id}, score={self.sentiment_score}, source={self.source})>"

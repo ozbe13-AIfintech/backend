@@ -9,7 +9,9 @@ router = APIRouter()
 
 
 @router.get("/popular", response_model=List[NewsResponse])
-def get_popular_news(limit: int = Query(10, gt=0, le=50), db: Session = Depends(get_db)):
+def get_popular_news(
+    limit: int = Query(10, gt=0, le=50), db: Session = Depends(get_db)
+):
     """
     최신 뉴스 전체 조회 (DB에서 최신 순)
     """
@@ -17,7 +19,11 @@ def get_popular_news(limit: int = Query(10, gt=0, le=50), db: Session = Depends(
 
 
 @router.get("/search", response_model=List[NewsResponse])
-def search_news(query: str = Query(..., min_length=1), limit: int = Query(10, gt=0, le=50), db: Session = Depends(get_db)):
+def search_news(
+    query: str = Query(..., min_length=1),
+    limit: int = Query(10, gt=0, le=50),
+    db: Session = Depends(get_db),
+):
     """
     검색어 기반 뉴스 조회 및 DB 저장
     """
@@ -26,7 +32,9 @@ def search_news(query: str = Query(..., min_length=1), limit: int = Query(10, gt
 
 
 @router.get("/stock/{symbol}", response_model=List[NewsResponse])
-def get_stock_news(symbol: str, limit: int = Query(10, gt=0, le=50), db: Session = Depends(get_db)):
+def get_stock_news(
+    symbol: str, limit: int = Query(10, gt=0, le=50), db: Session = Depends(get_db)
+):
     """
     특정 주식 관련 뉴스 DB 조회
     """
@@ -39,4 +47,3 @@ def get_latest(limit: int = Query(10, gt=0, le=50), db: Session = Depends(get_db
     DB에서 최신 뉴스 전체 조회
     """
     return get_latest_news(db, limit=limit)
-

@@ -32,7 +32,7 @@ class User(Base):
     trades = relationship("Trade", back_populates="user")
     wishlist = relationship("UserWishlist", back_populates="user")
     reviews = relationship("StockReview", back_populates="user")
-    
+
 
 class IdentityVerification(Base):
     __tablename__ = "identity_verifications"
@@ -63,4 +63,4 @@ class UserWishlist(Base):
     user = relationship("User", back_populates="wishlist")
     stock = relationship("Stock", back_populates="user_wishlist")
 
-    __table_args__ = (UniqueConstraint('user_id', 'stock_id', name='_user_stock_uc'),)
+    __table_args__ = (UniqueConstraint("user_id", "stock_id", name="_user_stock_uc"),)

@@ -12,7 +12,9 @@ def charge_card(card_number: str, expiry_date: str, cvc: str, amount: float) -> 
     return True
 
 
-def deposit_to_user(db: Session, user: User, amount: float, card_number: str, expiry_date: str, cvc: str):
+def deposit_to_user(
+    db: Session, user: User, amount: float, card_number: str, expiry_date: str, cvc: str
+):
     if not getattr(user, "is_verified", False):
         raise HTTPException(status_code=403, detail="본인 인증이 필요합니다.")
 

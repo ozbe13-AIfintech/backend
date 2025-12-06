@@ -6,7 +6,7 @@ import requests
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-#import yfinance as yf
+# import yfinance as yf
 from app.models.stock import (
     Country,
     Market,
@@ -310,9 +310,6 @@ def create_stock_review(
     )
 
 
-
-
-
 def get_or_create(session: Session, model, defaults=None, **kwargs):
     """SQLAlchemy에서 객체 조회 후 없으면 생성"""
     instance = session.query(model).filter_by(**kwargs).first()
@@ -341,10 +338,10 @@ def to_native(x):
 
 def insert_stock_price(db: Session, symbol: str):
     symbol = symbol.upper()
-    #ticker = yf.Ticker(symbol)
+    # ticker = yf.Ticker(symbol)
 
     # 종목 정보 가져오기
-    #info = ticker.info
+    # info = ticker.info
     stock_name = info.get("shortName", symbol)
     country_name = info.get("country") or "Unknown"
     market_name = info.get("exchange") or "Unknown"

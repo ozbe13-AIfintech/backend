@@ -43,7 +43,16 @@ def _format_article(article: dict):
 # 확장 심볼 키워드 (AI매칭 강화를 위해 추가)
 # -----------------------------------------
 extra_map = {
-    "AAPL": ["apple", "apple inc", "애플", "아이폰", "팀 쿡", "애플 주가", "macbook", "iphone"],
+    "AAPL": [
+        "apple",
+        "apple inc",
+        "애플",
+        "아이폰",
+        "팀 쿡",
+        "애플 주가",
+        "macbook",
+        "iphone",
+    ],
     "TSLA": ["tesla", "테슬라", "일론 머스크", "elon musk", "전기차", "gigafactory"],
     "GOOGL": ["google", "구글", "알파벳", "검색엔진", "google ai"],
     "AMZN": ["amazon", "아마존", "aws", "프라임", "amazon cloud"],
@@ -69,7 +78,9 @@ def match_extra_symbol(text: str):
 # -----------------------------------------
 # 뉴스 Fetch + DB 저장
 # -----------------------------------------
-def fetch_and_save_news(db: Session, query: str = None, limit: int = 10, language: str = "ko"):
+def fetch_and_save_news(
+    db: Session, query: str = None, limit: int = 10, language: str = "ko"
+):
     url = NEWS_EVERYTHING_URL
     today = datetime.now(KST)
     from_date = (today - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -167,7 +178,7 @@ def fetch_and_save_news(db: Session, query: str = None, limit: int = 10, languag
             print("이미 DB에 있는 뉴스 스킵:", title)
             continue
 
-        combined_text = (title + " " + description)
+        combined_text = title + " " + description
 
         # 주식 자동 매칭
         stock_symbol, stock_id = match_stock(combined_text)

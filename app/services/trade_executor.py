@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.stock import Stock, StockPrice
 from sqlalchemy import func
 
+
 def buy_stock(db: Session, user_id: int, stock_id: int, quantity: int):
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="주문 수량은 1 이상이어야 합니다.")
@@ -14,7 +15,9 @@ def buy_stock(db: Session, user_id: int, stock_id: int, quantity: int):
     user = db.query(User).filter(User.id == user_id).first()
     stock = db.query(Stock).filter(Stock.id == stock_id).first()
     if not user or not stock:
-        raise HTTPException(status_code=404, detail="사용자 또는 주식이 존재하지 않습니다.")
+        raise HTTPException(
+            status_code=404, detail="사용자 또는 주식이 존재하지 않습니다."
+        )
 
     # 최신 가격 조회
     latest_price_record = (
@@ -45,12 +48,18 @@ def buy_stock(db: Session, user_id: int, stock_id: int, quantity: int):
         db.add(trade)
 
         # UserAsset 갱신
-        asset = db.query(UserAsset).filter_by(user_id=user_id, stock_id=stock_id).first()
+        asset = (
+            db.query(UserAsset).filter_by(user_id=user_id, stock_id=stock_id).first()
+        )
         if asset:
-            asset.avg_price = (asset.quantity * asset.avg_price + quantity * price) / (asset.quantity + quantity)
+            asset.avg_price = (asset.quantity * asset.avg_price + quantity * price) / (
+                asset.quantity + quantity
+            )
             asset.quantity += quantity
         else:
-            asset = UserAsset(user_id=user_id, stock_id=stock_id, quantity=quantity, avg_price=price)
+            asset = UserAsset(
+                user_id=user_id, stock_id=stock_id, quantity=quantity, avg_price=price
+            )
             db.add(asset)
 
         user.balance -= total_price
@@ -72,7 +81,9 @@ def sell_stock(db: Session, user_id: int, stock_id: int, quantity: int):
     stock = db.query(Stock).filter(Stock.id == stock_id).first()
 
     if not user or not stock or not asset:
-        raise HTTPException(status_code=404, detail="사용자, 주식, 또는 자산이 존재하지 않습니다.")
+        raise HTTPException(
+            status_code=404, detail="사용자, 주식, 또는 자산이 존재하지 않습니다."
+        )
 
     if asset.quantity < quantity:
         raise HTTPException(status_code=400, detail="보유 수량이 부족합니다.")
@@ -125,18 +136,22 @@ def get_user_trades(db: Session, user_id: int):
         .all()
     )
 
+
 def get_user_owned_stocks(db: Session, user_id: int) -> list[OwnedStockResponse]:
     """
     JWT 인증된 사용자의 보유 주식 조회
     """
     # 사용자 거래 내역에서 종목별 보유 수량과 평균 매수가 계산
-    trades = db.query(
-        Trade.stock_id,
-        func.sum(Trade.quantity).label("total_quantity"),
-        func.avg(Trade.price).label("avg_price")
-    ).filter(Trade.user_id == user_id)\
-     .group_by(Trade.stock_id)\
-     .all()
+    trades = (
+        db.query(
+            Trade.stock_id,
+            func.sum(Trade.quantity).label("total_quantity"),
+            func.avg(Trade.price).label("avg_price"),
+        )
+        .filter(Trade.user_id == user_id)
+        .group_by(Trade.stock_id)
+        .all()
+    )
 
     owned_stocks: list[OwnedStockResponse] = []
 
@@ -159,7 +174,7 @@ def get_user_owned_stocks(db: Session, user_id: int) -> list[OwnedStockResponse]
                 symbol=stock.symbol,
                 quantity=int(t.total_quantity),
                 avg_price=float(t.avg_price),
-                current_price=current_price
+                current_price=current_price,
             )
         )
 

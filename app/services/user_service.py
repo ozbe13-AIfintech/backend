@@ -156,7 +156,6 @@ def refresh_access_token(refresh_token: str):
     return {"access_token": new_access_token}
 
 
-
 def update_user_profile(
     db: Session, user_id: int, data: UserUpdateRequest, current_user: User
 ):
@@ -215,6 +214,7 @@ def toggle_wishlist(db: Session, user: User, stock_id: int, favorite: bool) -> d
             db.delete(fav)
             db.commit()
     return {"stock_id": stock_id, "favorite": favorite}
+
 
 def add_wishlist(db: Session, user_id: int, stock_id: int):
     item = UserWishlist(user_id=user_id, stock_id=stock_id)

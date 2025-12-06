@@ -5,6 +5,7 @@ from typing import List, Tuple, Optional
 import numpy as np
 from app.db.session import SessionLocal
 
+
 # ---------------- Fraud 계산 함수 ----------------
 def determine_risk_level(risk_score: float) -> str:
     if risk_score >= 80:
@@ -40,14 +41,18 @@ def detect_fraud_service(
             prev = prices[1]
 
             if prev.price > 0:
-                price_change = abs(float(last.price) - float(prev.price)) / float(prev.price)
+                price_change = abs(float(last.price) - float(prev.price)) / float(
+                    prev.price
+                )
                 price_change = float(price_change)
                 if price_change > 0.1:
                     risk_score += 50
                     reason.append("Price spike detected")
 
             if prev.volume:
-                volume_change = (float(last.volume) - float(prev.volume)) / float(prev.volume)
+                volume_change = (float(last.volume) - float(prev.volume)) / float(
+                    prev.volume
+                )
                 volume_change = float(volume_change)
                 if volume_change > 2:
                     risk_score += 50
@@ -83,13 +88,16 @@ def detect_fraud_service(
         return None, "Low"
 
 
-def detect_multiple_fraud_service(db: Session, stock_ids: List[int], user_id: int) -> List[FraudLog]:
+def detect_multiple_fraud_service(
+    db: Session, stock_ids: List[int], user_id: int
+) -> List[FraudLog]:
     fraud_logs = []
     for stock_id in stock_ids:
         fraud_log, _ = detect_fraud_service(db, stock_id, user_id)
         if fraud_log:
             fraud_logs.append(fraud_log)
     return fraud_logs
+
 
 # ---------------- 배치 실행 함수 ----------------
 def run_fraud_batch(user_id: int = 1):
@@ -120,5 +128,3 @@ def run_fraud_batch(user_id: int = 1):
 # ---------------- 실행 ----------------
 if __name__ == "__main__":
     run_fraud_batch(user_id=1)
-
-

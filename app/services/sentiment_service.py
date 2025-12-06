@@ -15,12 +15,12 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 okt = Okt()
 
 
-
 POS_KO = ["좋다", "상승", "강세", "추천", "수익", "돌파", "성장", "가속화"]
 NEG_KO = ["나쁘다", "하락", "약세", "손실", "위험", "감소", "둔화"]
 
 POS_EN = ["good", "rise", "bullish", "profit", "increase", "gain", "surge", "growth"]
 NEG_EN = ["bad", "fall", "bearish", "loss", "decline", "drop", "risk", "down"]
+
 
 def analyze_sentiment(text: str) -> float:
     """
@@ -38,7 +38,7 @@ def analyze_sentiment(text: str) -> float:
             score -= 1
 
     # 영어 분석
-    words_en = re.findall(r'\b\w+\b', text_lower)
+    words_en = re.findall(r"\b\w+\b", text_lower)
     for word in words_en:
         if word in POS_EN:
             score += 1
@@ -66,7 +66,9 @@ def fetch_news_for_stock(stock_name: str, language: str = "ko"):
 
     articles = res.json().get("articles", [])
     # title + description 합쳐서 반환
-    return [(a["title"] + " " + a.get("description", ""), "newsapi") for a in articles[:5]]
+    return [
+        (a["title"] + " " + a.get("description", ""), "newsapi") for a in articles[:5]
+    ]
 
 
 def save_social_sentiment(db: Session, stock_id: int, content: str, source: str):

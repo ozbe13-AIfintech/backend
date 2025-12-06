@@ -22,7 +22,6 @@ load_dotenv()
 app = FastAPI(title="AI FinTech API")
 
 
-
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -47,11 +46,14 @@ app.include_router(
     sentiment_routes.router, prefix="/api/v1/sentiment", tags=["Sentiment"]
 )
 app.include_router(trade_routes.router, prefix="/api/v1/trades", tags=["Trades"])
-app.include_router(ai_trading_routes.router,prefix="/api/v1/ai_trading_routes",tags=["AI_trading"])
+app.include_router(
+    ai_trading_routes.router, prefix="/api/v1/ai_trading_routes", tags=["AI_trading"]
+)
 app.include_router(news.router, prefix="/api/v1/news", tags=["News"])
 app.include_router(forex.router, prefix="/api/v1/forex", tags=["Forex"])
-app.include_router(search.router,prefix="/api/v1/search", tags=["Search"])
-app.include_router(mbti.router,prefix="/api/v1/mbti", tags=["MBTI"])
+app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
+app.include_router(mbti.router, prefix="/api/v1/mbti", tags=["MBTI"])
+
 
 @app.get("/")
 def root():

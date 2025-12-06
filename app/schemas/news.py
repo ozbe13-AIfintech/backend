@@ -15,6 +15,7 @@ class NewsBase(BaseModel):
 
 class NewsCreate(NewsBase):
     """DB에 저장할 때 사용"""
+
     stock_id: Optional[int] = None
 
 
@@ -23,4 +24,3 @@ class NewsResponse(NewsBase):
 
     class Config:
         from_attributes = True
-

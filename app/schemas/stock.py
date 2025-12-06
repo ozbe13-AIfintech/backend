@@ -80,7 +80,7 @@ class StockPredictionResponse(BaseModel):
 
 
 class StockReviewResponse(BaseModel):
-    id : int
+    id: int
     content: str
     rating: Optional[int]
     created_at: datetime

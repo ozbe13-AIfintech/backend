@@ -3,7 +3,6 @@ from typing import List, Dict, Union
 from datetime import datetime
 
 
-
 class IndexValueSchema(BaseModel):
     value: float
     recorded_at: datetime
@@ -11,6 +10,7 @@ class IndexValueSchema(BaseModel):
 
     class Config:
         orm_mode = True
+
 
 class IndexBase(BaseModel):
     name: str
@@ -28,12 +28,12 @@ class IndexUpdate(IndexBase):
 class IndexSchema(BaseModel):
     id: int
     name: str
-    symbol: str                # 여기에 추가
+    symbol: str  # 여기에 추가
     market_id: int
-    current_value: float       # 여기에 추가
+    current_value: float  # 여기에 추가
     change: float
     values: List[IndexValueSchema]
-    components: Dict           # 필요에 따라 구조 조정
+    components: Dict  # 필요에 따라 구조 조정
 
     class MyModel(BaseModel):
         class Config:

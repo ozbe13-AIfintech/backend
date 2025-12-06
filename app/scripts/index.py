@@ -12,8 +12,9 @@ INDEX_SYMBOLS = {
     "NIKKEI225": "^N225",
     "HANGSENG": "^HSI",
     "DAX": "^GDAXI",
-    "CAC40": "^FCHI"
+    "CAC40": "^FCHI",
 }
+
 
 def main():
     db: Session = SessionLocal()
@@ -24,6 +25,7 @@ def main():
             print(f"  - {idx.name} ({idx.symbol}) 저장 완료")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()

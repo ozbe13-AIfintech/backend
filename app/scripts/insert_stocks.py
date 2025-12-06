@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.stock import Stock, StockPrice, Country, Market, Sector
 import pytz
 
+
 def insert_stock_price(db: Session, symbol: str):
     symbol = symbol.upper()
     ticker = yf.Ticker(symbol)
@@ -48,7 +49,7 @@ def insert_stock_price(db: Session, symbol: str):
             name=stock_name,
             country_id=country.id,
             market_id=market.id,
-            sector_id=sector.id
+            sector_id=sector.id,
         )
         db.add(stock)
         db.commit()
@@ -63,26 +64,34 @@ def insert_stock_price(db: Session, symbol: str):
     inserted_count = 0
     for date, row in hist.iterrows():
         # timezone 제거 + UTC로 통일
-        recorded_at = date.tz_convert('UTC').to_pydatetime() if hasattr(date, 'tz_convert') else date.to_pydatetime()
+        recorded_at = (
+            date.tz_convert("UTC").to_pydatetime()
+            if hasattr(date, "tz_convert")
+            else date.to_pydatetime()
+        )
         recorded_date = recorded_at.date()
 
         # 중복 체크 (같은 날 데이터 존재하면 삽입 X)
-        exists = db.query(StockPrice).filter(
-            StockPrice.stock_id == stock.id,
-            func.date(StockPrice.recorded_at) == recorded_date
-        ).first()
+        exists = (
+            db.query(StockPrice)
+            .filter(
+                StockPrice.stock_id == stock.id,
+                func.date(StockPrice.recorded_at) == recorded_date,
+            )
+            .first()
+        )
         if exists:
             continue
 
         stock_price = StockPrice(
             stock_id=stock.id,
-            price=float(row['Close']),
-            open=float(row['Open']),
-            high=float(row['High']),
-            low=float(row['Low']),
-            close=float(row['Close']),
-            volume=int(row['Volume']),
-            recorded_at=recorded_at
+            price=float(row["Close"]),
+            open=float(row["Open"]),
+            high=float(row["High"]),
+            low=float(row["Low"]),
+            close=float(row["Close"]),
+            volume=int(row["Volume"]),
+            recorded_at=recorded_at,
         )
         db.add(stock_price)
         inserted_count += 1
@@ -96,4 +105,3 @@ if __name__ == "__main__":
     symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]
     for s in symbols:
         insert_stock_price(db, s)
-

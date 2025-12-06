@@ -34,8 +34,6 @@ class MessageResponse(BaseModel):
     msg: str
 
 
-
-
 class UserUpdateRequest(BaseModel):
     nickname: Optional[str]
     phone: Optional[str]
@@ -51,14 +49,16 @@ class TokenResponse(BaseModel):
 class WishlistAddRequest(BaseModel):
     stock_id: int
     favorite: bool
+
+
 class WishlistItem(BaseModel):
     stock_id: int
     stock_name: str
+
+
 class WishlistResponse(BaseModel):
     user_id: int
     wishlist: List[WishlistItem]
-
-
 
 
 class UserWishlistBase(BaseModel):

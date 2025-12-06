@@ -26,8 +26,9 @@ YAHOO_INDEX_SYMBOLS = {
     "NIKKEI225": "^N225",
     "HANGSENG": "^HSI",
     "DAX": "^GDAXI",
-    "CAC40": "^FCHI"
+    "CAC40": "^FCHI",
 }
+
 
 def create_index(db: Session, name: str, market_id: int, components: dict):
     idx = Index(name=name, market_id=market_id)
@@ -44,6 +45,7 @@ def create_index(db: Session, name: str, market_id: int, components: dict):
 
     db.commit()
     return idx
+
 
 def update_index(db: Session, idx: Index, name: str, market_id: int, components: dict):
     idx.name = name
@@ -62,6 +64,7 @@ def update_index(db: Session, idx: Index, name: str, market_id: int, components:
     db.commit()
     db.refresh(idx)
     return idx
+
 
 def get_index_detail(db: Session, index_id: int) -> IndexSchema:
     idx = (
@@ -82,9 +85,7 @@ def get_index_detail(db: Session, index_id: int) -> IndexSchema:
 
     values = [
         IndexValueSchema(
-            value=v.value,
-            recorded_at=v.recorded_at,
-            change_percent=v.change_percent
+            value=v.value, recorded_at=v.recorded_at, change_percent=v.change_percent
         )
         for v in idx.values
     ]
@@ -99,6 +100,7 @@ def get_index_detail(db: Session, index_id: int) -> IndexSchema:
         components=components,
         values=values,
     )
+
 
 def get_index_graph(db: Session, index_id: int) -> IndexGraphResponse:
     idx = db.query(Index).filter(Index.id == index_id).first()
@@ -129,6 +131,8 @@ def get_index_graph(db: Session, index_id: int) -> IndexGraphResponse:
         graph={"dates": dates, "values": y_values},
         components=components,
     )
+
+
 def _get_previous_index_value(db: Session, index_value: IndexValue):
     previous_record = (
         db.query(IndexValue)
@@ -144,9 +148,7 @@ def _get_previous_index_value(db: Session, index_value: IndexValue):
 def save_index_value(db: Session, index_id: int, value: float):
     # IndexValue를 저장할 때 index_id가 제대로 연결되어 있는지 확인
     index_value = IndexValue(
-        index_id=index_id,
-        value=value,
-        recorded_at=datetime.utcnow()
+        index_id=index_id, value=value, recorded_at=datetime.utcnow()
     )
     db.add(index_value)
     db.commit()
@@ -157,6 +159,7 @@ def save_index_value(db: Session, index_id: int, value: float):
     db.commit()
 
     return index_value
+
 
 def calculate_change_percent(db: Session, index_value: IndexValue):
     previous_value = _get_previous_index_value(db, index_value)
@@ -177,8 +180,9 @@ def fetch_index_data_from_yahoo(symbol: str):
     if hist.empty:
         print(f"[WARNING] {symbol} 데이터 없음")
         return None
-    value = hist['Close'].iloc[-1]  # FutureWarning 방지
+    value = hist["Close"].iloc[-1]  # FutureWarning 방지
     return float(value)
+
 
 def save_multiple_indices_from_api(db: Session, symbols: dict = None):
     if symbols is None:
@@ -194,9 +198,19 @@ def save_multiple_indices_from_api(db: Session, symbols: dict = None):
                 continue
 
             # Index 조회 또는 새로 생성
-            idx = db.query(Index).filter((Index.symbol == yf_symbol) | (Index.name == name)).first()
+            idx = (
+                db.query(Index)
+                .filter((Index.symbol == yf_symbol) | (Index.name == name))
+                .first()
+            )
             if not idx:
-                idx = Index(name=name, symbol=yf_symbol, market_id=1, current_value=value, change=0.0)
+                idx = Index(
+                    name=name,
+                    symbol=yf_symbol,
+                    market_id=1,
+                    current_value=value,
+                    change=0.0,
+                )
                 db.add(idx)
                 db.flush()  # idx.id를 바로 사용하기 위해 flush
             else:
@@ -205,9 +219,7 @@ def save_multiple_indices_from_api(db: Session, symbols: dict = None):
 
             # IndexValue 생성
             index_value_obj = IndexValue(
-                index_id=idx.id,
-                value=value,
-                recorded_at=datetime.utcnow()
+                index_id=idx.id, value=value, recorded_at=datetime.utcnow()
             )
             db.add(index_value_obj)
 
@@ -228,8 +240,6 @@ def save_multiple_indices_from_api(db: Session, symbols: dict = None):
     return saved_indices
 
 
-
-
 def list_indices_service(db) -> List[IndexSchema]:
     indices = db.query(Index).options(joinedload(Index.values)).all()
     if not indices:
@@ -242,7 +252,7 @@ def list_indices_service(db) -> List[IndexSchema]:
         select(
             index_component.c.index_id,
             index_component.c.stock_id,
-            index_component.c.weight
+            index_component.c.weight,
         ).where(index_component.c.index_id.in_(index_ids))
     ).fetchall()
 
@@ -257,7 +267,7 @@ def list_indices_service(db) -> List[IndexSchema]:
             IndexValueSchema(
                 value=v.value,
                 recorded_at=v.recorded_at,
-                change_percent=v.change_percent
+                change_percent=v.change_percent,
             )
             for v in idx.values
         ]

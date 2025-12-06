@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class QuestionBase(BaseModel):
     id: int
     text: str
@@ -8,6 +9,7 @@ class QuestionBase(BaseModel):
 
     class Config:
         orm_mode = True
+
 
 class AnswerRequest(BaseModel):
     user_id: int

@@ -6,10 +6,11 @@ from app.services.trade_executor import get_user_owned_stocks
 from app.schemas.trade import OwnedStockResponse
 from app.db.session import get_db
 from app.services.trade_executor import buy_stock, sell_stock, get_user_trades
-from app.schemas.trade import TradeRequest, TradeResponse,TradeHistoryResponse
+from app.schemas.trade import TradeRequest, TradeResponse, TradeHistoryResponse
 from app.core.security import get_current_user
 
 router = APIRouter()
+
 
 # --- 구매 ---
 @router.post("/buy", response_model=TradeResponse)
@@ -26,6 +27,7 @@ def buy_trade(
     )
     return trade
 
+
 # --- 판매 ---
 @router.post("/sell", response_model=TradeResponse)
 def sell_trade(
@@ -41,6 +43,7 @@ def sell_trade(
     )
     return trade
 
+
 # --- 거래 내역 조회 ---
 @router.get("/history", response_model=List[TradeHistoryResponse])
 def trade_history(
@@ -50,11 +53,9 @@ def trade_history(
     trades = get_user_trades(db=db, user_id=current_user.id)
     return trades
 
+
 @router.get("/users/my-stocks", response_model=List[OwnedStockResponse])
-def my_stocks(
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
+def my_stocks(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     JWT 인증된 사용자의 보유 주식 조회
     """

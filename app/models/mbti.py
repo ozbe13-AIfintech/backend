@@ -5,13 +5,14 @@ from app.db.base import Base
 from sqlalchemy import Column, Integer, String
 from app.db.base import Base
 
+
 class MbtiQuestion(Base):
     __tablename__ = "mbti_questions"
 
     id = Column(Integer, primary_key=True, index=True)
     dimension = Column(String(10), nullable=False)  # ex) "E/I"
-    option_a = Column(String, nullable=False)        # EX: 외향적 선택지
-    option_b = Column(String, nullable=False)        # IN: 내향적 선택지
+    option_a = Column(String, nullable=False)  # EX: 외향적 선택지
+    option_b = Column(String, nullable=False)  # IN: 내향적 선택지
     text = Column(String, nullable=False)
 
 

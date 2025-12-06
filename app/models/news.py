@@ -5,7 +5,6 @@ from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 
-
 class News(Base):
     __tablename__ = "news"
 
@@ -17,8 +16,8 @@ class News(Base):
     published_at = Column(DateTime, nullable=False)
     stock_symbol = Column(String(16), nullable=True)
 
-
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=True)
     stock = relationship("Stock", back_populates="news")
+
     def __repr__(self):
         return f"<News(title={self.title}, source={self.source}, published_at={self.published_at})>"

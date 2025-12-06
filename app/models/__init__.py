@@ -5,4 +5,4 @@ from .index import *
 from .fraud import *
 from .forex import *
 from .mbti import *
-from  .mbti import *
+from .mbti import *
