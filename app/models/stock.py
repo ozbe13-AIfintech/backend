@@ -13,6 +13,11 @@ from sqlalchemy.orm import relationship
 from app.db.base import Base
 from sqlalchemy import BigInteger
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.news import News
+    from app.models.index import Index
 
 class Country(Base):
     __tablename__ = "countries"
@@ -43,6 +48,7 @@ class Sector(Base):
 
 class Stock(Base):
     __tablename__ = "stocks"
+    __allow_unmapped__ = True
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     symbol = Column(String(50), unique=True, nullable=False)
@@ -60,6 +66,7 @@ class Stock(Base):
     sentiments = relationship("SocialSentiment", back_populates="stock")
     fraud_logs = relationship("FraudLog", back_populates="stock")
     user_wishlist = relationship("UserWishlist", back_populates="stock")
+
     news = relationship("News", back_populates="stock")
 
 
