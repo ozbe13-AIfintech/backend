@@ -32,6 +32,7 @@ from app.services.stock import (
     get_stock_reviews,
     create_stock_review,
     get_filtered_stocks,
+    delete_stock_review
 )
 from app.models.stock import StockReview
 from typing import Optional, List
@@ -223,3 +224,11 @@ def post_review(
     current_user: User = Depends(get_current_user),
 ):
     return create_stock_review(db, stock_id, data, current_user)
+
+@router.delete("/stocks/reviews/{review_id}")
+def delete_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return delete_stock_review(db, review_id, current_user)

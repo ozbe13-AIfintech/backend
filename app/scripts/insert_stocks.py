@@ -102,6 +102,46 @@ def insert_stock_price(db: Session, symbol: str):
 
 if __name__ == "__main__":
     db = next(get_db())
-    symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]
+
+    symbols = [
+        # 미국 Tech
+        "AAPL","MSFT","GOOG","GOOGL","AMZN","META","NVDA","TSLA",
+        "ORCL","IBM","ADBE","INTC","AMD","QCOM","CSCO",
+
+        # AI & Cloud
+        "CRWD","SNOW","PLTR","NET","MDB","DDOG",
+
+        # 금융
+        "JPM","BAC","WFC","C","GS","MS",
+
+        # 산업/에너지
+        "XOM","CVX","COP","SLB","CAT","GE","UNP",
+
+        # 헬스케어
+        "PFE","JNJ","UNH","MRK","ABBV",
+
+        # 소비재
+        "WMT","HD","COST","MCD","PG","KO","PEP","NKE",
+
+        # 자동차
+        "F","GM","RIVN","LCID",
+
+        # ETF
+        "SPY","QQQ","DIA","VTI","VOO","ARKK","XLK","XLF","XLE",
+
+        # 한국 대형주
+        "005930.KS","000660.KS","035420.KS","035720.KS",
+        "005380.KS","051910.KS","068270.KS","207940.KS",
+        "028260.KS","055550.KS","105560.KS",
+
+        # 한국 ETF
+        "069500.KS","122630.KS","233740.KS","251340.KS",
+
+        # 글로벌 EV/배터리
+        "NIO","LI","XPEV","BYDDF",
+        "035900.KS","006400.KS",
+    ]
+
     for s in symbols:
         insert_stock_price(db, s)
+

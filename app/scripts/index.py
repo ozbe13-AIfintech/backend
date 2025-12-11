@@ -1,28 +1,102 @@
+# scripts/insert_indices.py
+import yfinance as yf
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
-from app.services import index as index_service
+from app.models.index import Index, IndexValue
+from app.services.index import calculate_change_percent
 
-# 가져올 인덱스 심볼 지정 (원하는 만큼)
 INDEX_SYMBOLS = {
     "KOSPI": "^KS11",
-    "NASDAQ": "^IXIC",
+    "KOSDAQ": "^KQ11",
     "S&P500": "^GSPC",
+    "NASDAQ": "^IXIC",
     "DOWJONES": "^DJI",
+    "RUSSELL2000": "^RUT",
     "FTSE100": "^FTSE",
-    "NIKKEI225": "^N225",
-    "HANGSENG": "^HSI",
     "DAX": "^GDAXI",
     "CAC40": "^FCHI",
+    "NIKKEI225": "^N225",
+    "HANGSENG": "^HSI",
+    "SSE": "000001.SS",
+    "SZI": "399001.SZ",
+    "SENSEX": "^BSESN",
+    "NIFTY50": "^NSEI",
+    "TSX": "^GSPTSE",
 }
 
 
+def save_index_value(db: Session, index_obj: Index, value: float):
+    # IndexValue 저장
+    iv = IndexValue(
+        index_id=index_obj.id,
+        value=value,
+        recorded_at=datetime.utcnow()
+    )
+    db.add(iv)
+    db.flush()  # id 가져오기 위해 flush
+
+    # 변화율 계산
+    calculate_change_percent(db, iv)
+
+    # Index 현재값 업데이트
+    index_obj.current_value = value
+    index_obj.change = iv.change_percent
+
+    return iv
+
+
+def fetch_and_save(db: Session, name: str, symbol: str):
+    ticker = yf.Ticker(symbol)
+    hist = ticker.history(period="1d")
+
+    if hist.empty:
+        print(f"[WARN] {name}: 데이터 없음")
+        return None
+
+    close_price = float(hist["Close"].iloc[-1])
+
+    # Index 생성 또는 가져오기
+    index_obj = (
+        db.query(Index).filter((Index.name == name) | (Index.symbol == symbol)).first()
+    )
+
+    if not index_obj:
+        index_obj = Index(
+            name=name,
+            symbol=symbol,
+            market_id=1,
+            current_value=close_price,
+        )
+        db.add(index_obj)
+        db.flush()
+
+    # IndexValue 저장
+    save_index_value(db, index_obj, close_price)
+
+    print(f"[INFO] {name} 저장됨: {close_price}")
+
+    return index_obj
+
+
 def main():
-    db: Session = SessionLocal()
+    db = SessionLocal()
+    saved = []
+
     try:
-        saved_indices = index_service.save_multiple_indices_from_api(db, INDEX_SYMBOLS)
-        print(f"[INFO] {len(saved_indices)}개 인덱스 저장 완료")
-        for idx in saved_indices:
-            print(f"  - {idx.name} ({idx.symbol}) 저장 완료")
+        for name, symbol in INDEX_SYMBOLS.items():
+            idx = fetch_and_save(db, name, symbol)
+            if idx:
+                saved.append(idx)
+
+        db.commit()
+        print(f"\n[SUCCESS] 총 {len(saved)}개 인덱스 저장 완료")
+
+    except Exception as e:
+        db.rollback()
+        print("[ERROR]", e)
+        raise
+
     finally:
         db.close()
 

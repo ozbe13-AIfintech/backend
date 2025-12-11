@@ -6,7 +6,7 @@ import requests
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-# import yfinance as yf
+#import yfinance as yf
 from app.models.stock import (
     Country,
     Market,
@@ -338,10 +338,10 @@ def to_native(x):
 
 def insert_stock_price(db: Session, symbol: str):
     symbol = symbol.upper()
-    # ticker = yf.Ticker(symbol)
+    #ticker = yf.Ticker(symbol)
 
     # 종목 정보 가져오기
-    # info = ticker.info
+    #info = ticker.info
     stock_name = info.get("shortName", symbol)
     country_name = info.get("country") or "Unknown"
     market_name = info.get("exchange") or "Unknown"
@@ -676,3 +676,16 @@ def get_stock_by_id(db: Session, stock_id: int) -> Optional[dict]:
         "sector": sector_name,
         "latest_price": latest_price,
     }
+def delete_stock_review(db: Session, review_id: int, current_user: User):
+    review = db.query(StockReview).filter(StockReview.id == review_id).first()
+
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    # 본인 리뷰인지 체크
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not allowed to delete this review")
+
+    db.delete(review)
+    db.commit()
+    return {"message": "Review deleted"}
