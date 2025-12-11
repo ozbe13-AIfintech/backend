@@ -11,7 +11,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Poetry
-.poetry/
+.poetry
 
 .DS_Store
 
