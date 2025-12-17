@@ -1,4 +1,4 @@
-# app/schemas/trade.py
+
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -40,4 +40,4 @@ class OwnedStockResponse(BaseModel):
     symbol: str
     quantity: int
     avg_price: float
-    current_price: float  # 필요하면 실시간 시세 포함
+    current_price: float

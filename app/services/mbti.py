@@ -5,7 +5,7 @@ import random
 from typing import List, Optional
 
 
-# --- 다음 질문 가져오기 (중복 제외) ---
+
 def get_next_question(
     db: Session, answered_ids: Optional[List[int]] = None
 ) -> Optional[MbtiQuestion]:
@@ -13,17 +13,17 @@ def get_next_question(
         answered_ids = []
     questions = db.query(MbtiQuestion).filter(~MbtiQuestion.id.in_(answered_ids)).all()
     if not questions:
-        return None  # 모든 질문 완료
+        return None
     return random.choice(questions)
 
 
-# --- 답변 제출 ---
+
 def submit_answer(db: Session, user_id: int, question_id: int, choice: str):
     question = db.query(MbtiQuestion).filter(MbtiQuestion.id == question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="존재하지 않는 질문입니다.")
 
-    # 유저 MBTI 기록 가져오기 or 생성
+
     user_mbti = db.query(UserMBTI).filter(UserMBTI.user_id == user_id).first()
     if not user_mbti:
         user_mbti = UserMBTI(user_id=user_id)
@@ -31,7 +31,7 @@ def submit_answer(db: Session, user_id: int, question_id: int, choice: str):
         db.commit()
         db.refresh(user_mbti)
 
-    # dimension → 컬럼 매핑
+
     dim_map = {
         "E/I": ("E", "I"),
         "S/N": ("S", "N"),
@@ -50,7 +50,7 @@ def submit_answer(db: Session, user_id: int, question_id: int, choice: str):
     db.commit()
 
 
-# --- MBTI 계산 ---
+
 def calc_mbti(user_mbti: UserMBTI) -> str:
     result = ""
     result += "E" if user_mbti.E >= user_mbti.I else "I"
@@ -60,7 +60,7 @@ def calc_mbti(user_mbti: UserMBTI) -> str:
     return result
 
 
-# --- MBTI 결과 + 추천 종목 ---
+
 def get_mbti_result(db: Session, user_id: int):
     user = db.query(UserMBTI).filter(UserMBTI.user_id == user_id).first()
     if not user:

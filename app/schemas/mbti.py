@@ -14,4 +14,4 @@ class QuestionBase(BaseModel):
 class AnswerRequest(BaseModel):
     user_id: int
     question_id: int
-    choice: str  # 'A' 또는 'B'
+    choice: str

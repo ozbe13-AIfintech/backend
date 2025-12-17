@@ -76,11 +76,9 @@ def get_index_detail(db: Session, index_id: int) -> IndexSchema:
     if not idx:
         raise ValueError("Index not found")
 
-    # index_component 테이블에서 weight를 한 번에 조회
     comp_rows = db.execute(
-        "SELECT stock_id, weight FROM index_component WHERE index_id = :index_id",
-        {"index_id": idx.id},
-    ).fetchall()
+"SELECT stock_id, weight FROM index_component WHERE index_id = :index_id",
+{"index_id": idx.id},).fetchall()
     components = {row[0]: row[1] for row in comp_rows}
 
     values = [
@@ -146,7 +144,6 @@ def _get_previous_index_value(db: Session, index_value: IndexValue):
 
 
 def save_index_value(db: Session, index_id: int, value: float):
-    # IndexValue를 저장할 때 index_id가 제대로 연결되어 있는지 확인
     index_value = IndexValue(
         index_id=index_id, value=value, recorded_at=datetime.utcnow()
     )
@@ -154,7 +151,7 @@ def save_index_value(db: Session, index_id: int, value: float):
     db.commit()
     db.refresh(index_value)
 
-    # 변화율 계산
+
     calculate_change_percent(db, index_value)
     db.commit()
 
@@ -164,7 +161,7 @@ def save_index_value(db: Session, index_id: int, value: float):
 def calculate_change_percent(db: Session, index_value: IndexValue):
     previous_value = _get_previous_index_value(db, index_value)
 
-    # 이전 값이 없거나 이전 값이 0일 때는 변화율을 0으로 설정
+
     if previous_value and previous_value != 0:
         index_value.change_percent = (
             (index_value.value - previous_value) / previous_value * 100
@@ -180,7 +177,7 @@ def fetch_index_data_from_yahoo(symbol: str):
     if hist.empty:
         print(f"[WARNING] {symbol} 데이터 없음")
         return None
-    value = hist["Close"].iloc[-1]  # FutureWarning 방지
+    value = hist["Close"].iloc[-1]
     return float(value)
 
 
@@ -197,7 +194,7 @@ def save_multiple_indices_from_api(db: Session, symbols: dict = None):
                 print(f"[WARNING] {name} 데이터 가져오기 실패")
                 continue
 
-            # Index 조회 또는 새로 생성
+
             idx = (
                 db.query(Index)
                 .filter((Index.symbol == yf_symbol) | (Index.name == name))
@@ -212,28 +209,28 @@ def save_multiple_indices_from_api(db: Session, symbols: dict = None):
                     change=0.0,
                 )
                 db.add(idx)
-                db.flush()  # idx.id를 바로 사용하기 위해 flush
+                db.flush()
             else:
                 idx.current_value = value
                 idx.name = name
 
-            # IndexValue 생성
+
             index_value_obj = IndexValue(
                 index_id=idx.id, value=value, recorded_at=datetime.utcnow()
             )
             db.add(index_value_obj)
 
-            # 변화율 계산 (메모리에서)
+
             calculate_change_percent(db, index_value_obj)
 
             saved_indices.append(idx)
 
-        # 모든 작업 끝난 후 한 번만 commit
+
         db.commit()
         print(f"[INFO] {len(saved_indices)}개 인덱스 저장 완료")
 
     except Exception as e:
-        db.rollback()  # 문제 발생 시 롤백
+        db.rollback()
         print(f"[ERROR] 인덱스 저장 중 오류: {e}")
         raise
 
@@ -247,7 +244,7 @@ def list_indices_service(db) -> List[IndexSchema]:
 
     index_ids = [idx.id for idx in indices]
 
-    # index_component에서 components를 직접 조회
+
     comp_rows = db.execute(
         select(
             index_component.c.index_id,
@@ -278,7 +275,7 @@ def list_indices_service(db) -> List[IndexSchema]:
             market_id=idx.market_id,
             current_value=idx.current_value,
             change=idx.change,
-            components=comp_map.get(idx.id, {}),  # weight 정보 반영
+            components=comp_map.get(idx.id, {}),
             values=values,
         )
         result.append(idx_schema)

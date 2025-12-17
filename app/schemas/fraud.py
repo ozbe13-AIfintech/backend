@@ -7,7 +7,7 @@ class FraudLogResponse(BaseModel):
     user_id: int
     stock_id: int
 
-    # 여기 추가
+
     stock_name: str
     stock_symbol: str
 

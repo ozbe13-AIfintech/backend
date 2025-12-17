@@ -4,7 +4,7 @@ from app.models import Stock, Index, ExchangeRate, ExchangeRateHistory
 
 
 def search(db: Session, query: str, skip: int = 0, limit: int = 50):
-    # Stock 테이블 검색
+
     stock_query = db.query(
         Stock.name.label("name"),
         Stock.symbol.label("symbol"),
@@ -15,7 +15,7 @@ def search(db: Session, query: str, skip: int = 0, limit: int = 50):
         literal_column("NULL").cast(TIMESTAMP).label("last_updated"),
     ).filter(Stock.name.ilike(f"%{query}%") | Stock.symbol.ilike(f"%{query}%"))
 
-    # Index 테이블 검색
+
     index_query = db.query(
         literal_column("NULL").cast(String).label("name"),
         literal_column("NULL").cast(String).label("symbol"),
@@ -26,7 +26,7 @@ def search(db: Session, query: str, skip: int = 0, limit: int = 50):
         literal_column("NULL").cast(TIMESTAMP).label("last_updated"),
     ).filter(Index.name.ilike(f"%{query}%") | Index.symbol.ilike(f"%{query}%"))
 
-    # ExchangeRate 테이블 검색
+
     exchange_rate_query = db.query(
         literal_column("NULL").cast(String).label("name"),
         literal_column("NULL").cast(String).label("symbol"),
@@ -40,7 +40,7 @@ def search(db: Session, query: str, skip: int = 0, limit: int = 50):
         | ExchangeRate.target_currency.ilike(f"%{query}%")
     )
 
-    # ExchangeRateHistory 테이블 검색
+
     exchange_rate_history_query = db.query(
         literal_column("NULL").cast(String).label("name"),
         literal_column("NULL").cast(String).label("symbol"),
@@ -54,17 +54,17 @@ def search(db: Session, query: str, skip: int = 0, limit: int = 50):
         | ExchangeRateHistory.target_currency.ilike(f"%{query}%")
     )
 
-    # UNION ALL
+
     results = (
         stock_query.union_all(index_query)
         .union_all(exchange_rate_query)
         .union_all(exchange_rate_history_query)
     )
 
-    # 페이징
+
     results_list = results.offset(skip).limit(limit).all()
 
-    # Row → dict 변환
+
     results_dicts = [dict(row._mapping) for row in results_list]
 
     return results_dicts

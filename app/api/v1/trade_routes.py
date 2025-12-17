@@ -1,4 +1,4 @@
-# app/api/v1/trades.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -12,12 +12,12 @@ from app.core.security import get_current_user
 router = APIRouter()
 
 
-# --- 구매 ---
+
 @router.post("/buy", response_model=TradeResponse)
 def buy_trade(
     trade_in: TradeRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),  # JWT 인증으로 사용자 가져오기
+    current_user=Depends(get_current_user),
 ):
     trade = buy_stock(
         db=db,
@@ -28,7 +28,7 @@ def buy_trade(
     return trade
 
 
-# --- 판매 ---
+
 @router.post("/sell", response_model=TradeResponse)
 def sell_trade(
     trade_in: TradeRequest,
@@ -44,7 +44,7 @@ def sell_trade(
     return trade
 
 
-# --- 거래 내역 조회 ---
+
 @router.get("/history", response_model=List[TradeHistoryResponse])
 def trade_history(
     db: Session = Depends(get_db),

@@ -11,7 +11,7 @@ class ExchangeRateResponse(BaseModel):
     target_currency: str
     rate: float
     last_updated: datetime
-    source: str = "exchangerate.host"  # 추가된 필드: 환율 제공 API 소스
+    source: str = "exchangerate.host"
 
     class Config:
         from_attributes = True

@@ -47,14 +47,14 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
         market_name = info.get("exchange", "Unknown")
         sector_name = info.get("sector", "Unknown")
 
-        # Country / Market / Sector
+
         country = get_or_create(
             session, Country, name=country_name, code=country_name[:3]
         )
         market = get_or_create(session, Market, name=market_name, country_id=country.id)
         sector = get_or_create(session, Sector, name=sector_name)
 
-        # Stock 생성
+
         stock = session.query(Stock).filter_by(symbol=symbol).first()
         if not stock:
             stock = Stock(
@@ -69,7 +69,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
             session.commit()
             session.refresh(stock)
 
-        # StockPrice 생성
+
         stock_price = StockPrice(
             stock_id=stock.id,
             price=price,
@@ -100,7 +100,7 @@ def insert_bulk_stocks(session: Session, symbols: list):
 
 def seed_extended_data(db: Session):
     """국가, 시장, 섹터 거의 실제 수준으로 세팅"""
-    # Countries
+
     countries = [
         {"name": "United States", "code": "US"},
         {"name": "South Korea", "code": "KR"},
@@ -126,7 +126,7 @@ def seed_extended_data(db: Session):
     for c in countries:
         get_or_create(db, Country, **c)
 
-    # Markets
+
     markets = [
         {"name": "NASDAQ", "country_name": "United States"},
         {"name": "NYSE", "country_name": "United States"},
@@ -152,7 +152,7 @@ def seed_extended_data(db: Session):
         if country:
             get_or_create(db, Market, name=m["name"], country_id=country.id)
 
-    # Sectors
+
     sectors = [
         "Technology",
         "Consumer Cyclical",
@@ -179,7 +179,6 @@ if __name__ == "__main__":
     db = SessionLocal()
     seed_extended_data(db)
 
-    # S&P500, NASDAQ 등 주요 심볼 수백 개 삽입 예시
     symbols = [
         "AAPL",
         "MSFT",
@@ -221,7 +220,7 @@ if __name__ == "__main__":
         "IBM",
         "MRK",
         "ABT",
-        # 필요하면 여기에 수백~수천 심볼 추가 가능
+
     ]
 
     results = insert_bulk_stocks(db, symbols)

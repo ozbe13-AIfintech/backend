@@ -83,7 +83,6 @@ def remove_wishlist_item(user_id: int, stock_id: int, db: Session = Depends(get_
     return user_service.remove_wishlist_item(db, user_id, stock_id)
 
 
-# GET /api/v1/wishlist/{user_id}/{stock_id} - 찜 상태 조회
 @router.get("/wishlist/{user_id}/{stock_id}")
 def get_wishlist_status_route(
     user_id: int, stock_id: int, db: Session = Depends(get_db)

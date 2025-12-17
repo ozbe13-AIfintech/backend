@@ -1,4 +1,4 @@
-# scripts/insert_stocks.py
+
 import yfinance as yf
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -12,14 +12,14 @@ def insert_stock_price(db: Session, symbol: str):
     symbol = symbol.upper()
     ticker = yf.Ticker(symbol)
 
-    # 종목 정보 가져오기
+
     info = ticker.info
     stock_name = info.get("shortName", symbol)
     country_name = info.get("country") or "Unknown"
     market_name = info.get("exchange") or "Unknown"
     sector_name = info.get("sector") or "Unknown"
 
-    # Country/Market/Sector 조회 or 생성
+
     country = db.query(Country).filter_by(name=country_name).first()
     if not country:
         country = Country(name=country_name, code=country_name[:3])
@@ -41,7 +41,7 @@ def insert_stock_price(db: Session, symbol: str):
         db.commit()
         db.refresh(sector)
 
-    # Stock 조회 or 생성
+
     stock = db.query(Stock).filter_by(symbol=symbol).first()
     if not stock:
         stock = Stock(
@@ -55,7 +55,7 @@ def insert_stock_price(db: Session, symbol: str):
         db.commit()
         db.refresh(stock)
 
-    # 최근 30일 가격 데이터 가져오기
+
     hist = ticker.history(period="1mo")
     if hist.empty:
         print(f"{symbol}: 가격 데이터 없음")
@@ -63,7 +63,6 @@ def insert_stock_price(db: Session, symbol: str):
 
     inserted_count = 0
     for date, row in hist.iterrows():
-        # timezone 제거 + UTC로 통일
         recorded_at = (
             date.tz_convert("UTC").to_pydatetime()
             if hasattr(date, "tz_convert")
@@ -71,7 +70,7 @@ def insert_stock_price(db: Session, symbol: str):
         )
         recorded_date = recorded_at.date()
 
-        # 중복 체크 (같은 날 데이터 존재하면 삽입 X)
+
         exists = (
             db.query(StockPrice)
             .filter(
@@ -104,11 +103,11 @@ if __name__ == "__main__":
     db = next(get_db())
 
     symbols = [
-        # 미국 Tech
+
         "AAPL","MSFT","GOOG","GOOGL","AMZN","META","NVDA","TSLA",
         "ORCL","IBM","ADBE","INTC","AMD","QCOM","CSCO",
 
-        # AI & Cloud
+
         "CRWD","SNOW","PLTR","NET","MDB","DDOG",
 
         # 금융

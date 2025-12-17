@@ -91,7 +91,6 @@ def get_stocks(db: Session, country_id=None, market_id=None, sector_id=None):
 
 
 def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
-    # DB에서 최근 limit개 데이터 가져오기
     prices = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)
@@ -103,10 +102,8 @@ def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
     if not prices:
         raise HTTPException(status_code=404, detail="Stock prices not found")
 
-    # 오래된 → 최신 순으로 정렬
     prices.reverse()
 
-    # Pandas DataFrame으로 변환
     df = pd.DataFrame(
         [
             {
@@ -124,11 +121,10 @@ def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
         ]
     )
 
-    # 이동평균 계산
     df["ma5"] = df["close"].rolling(window=5).mean()
     df["ma10"] = df["close"].rolling(window=10).mean()
 
-    # ApexCharts용 시리즈 생성
+
     candle_series = [
         {"x": row.date.isoformat(), "y": [row.open, row.high, row.low, row.close]}
         for row in df.itertuples()
@@ -169,17 +165,13 @@ def llm_predict(price_list: list):
         },
     )
 
-    # 응답 구조 로깅
     logging.debug("API Response: %s", response.json())
 
-    # 응답에서 'choices'가 있는지 확인
     response_json = response.json()
 
     if "choices" not in response_json:
         logging.error("API Response does not contain 'choices': %s", response_json)
-        return None  # 'choices'가 없으면 None을 반환하거나 예외를 처리
-
-    # 정상적으로 'choices' 키가 있다면
+        return None
     output = response_json["choices"][0]["message"]["content"]
     try:
         return float(output.replace(",", "").replace("원", "").strip())
@@ -259,13 +251,13 @@ def get_stock_reviews(db: Session, stock_id: int) -> list[StockReviewResponse]:
     """
     reviews = (
         db.query(StockReview)
-        .options(joinedload(StockReview.user))  # user 객체 미리 로딩
+        .options(joinedload(StockReview.user))
         .filter(StockReview.stock_id == stock_id)
         .order_by(StockReview.created_at.desc())
         .all()
     )
 
-    # user가 없는 경우는 제외
+
     return [
         StockReviewResponse(
             id=r.id,
@@ -283,9 +275,7 @@ def get_stock_reviews(db: Session, stock_id: int) -> list[StockReviewResponse]:
 def create_stock_review(
     db: Session, stock_id: int, data: StockReviewCreate, current_user: User
 ) -> StockReviewResponse:
-    """
-    리뷰 작성 (로그인 필요)
-    """
+
     stock_obj = db.query(Stock).filter(Stock.id == stock_id).first()
     if not stock_obj:
         raise HTTPException(status_code=404, detail="Stock not found")
@@ -340,14 +330,14 @@ def insert_stock_price(db: Session, symbol: str):
     symbol = symbol.upper()
     #ticker = yf.Ticker(symbol)
 
-    # 종목 정보 가져오기
+
     #info = ticker.info
     stock_name = info.get("shortName", symbol)
     country_name = info.get("country") or "Unknown"
     market_name = info.get("exchange") or "Unknown"
     sector_name = info.get("sector") or "Unknown"
 
-    # Country 조회/생성
+
     country = db.query(Country).filter_by(name=country_name).first()
     if not country:
         country = Country(name=country_name, code=country_name[:3])
@@ -355,7 +345,7 @@ def insert_stock_price(db: Session, symbol: str):
         db.commit()
         db.refresh(country)
 
-    # Market 조회/생성
+
     market = db.query(Market).filter_by(name=market_name, country_id=country.id).first()
     if not market:
         market = Market(name=market_name, country_id=country.id)
@@ -370,7 +360,7 @@ def insert_stock_price(db: Session, symbol: str):
         db.commit()
         db.refresh(sector)
 
-    # Stock 조회/생성
+
     stock = db.query(Stock).filter_by(symbol=symbol).first()
     if not stock:
         stock = Stock(
@@ -384,7 +374,7 @@ def insert_stock_price(db: Session, symbol: str):
         db.commit()
         db.refresh(stock)
 
-    # 최근 30일 가격 데이터 가져오기
+
     hist = ticker.history(period="1mo")
     if hist.empty:
         print(f"{symbol}: 가격 데이터 없음")
@@ -402,7 +392,7 @@ def insert_stock_price(db: Session, symbol: str):
         if exists:
             continue
 
-        # numpy 타입 → float/int 변환
+
         stock_price = StockPrice(
             stock_id=stock.id,
             price=float(row["Close"]),
@@ -431,7 +421,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
 
         row = hist.iloc[-1]
 
-        # numpy → float/int 변환
+
         price = float(row["Close"])
         open_price = float(row["Open"])
         high = float(row["High"])
@@ -445,7 +435,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
         market_name = info.get("exchange") or "Unknown"
         sector_name = info.get("sector") or "Unknown"
 
-        # Country / Market / Sector 조회/생성
+
         country = session.query(Country).filter_by(name=country_name).first()
         if not country:
             country = Country(name=country_name, code=country_name[:3])
@@ -471,7 +461,7 @@ def insert_realtime_stock(session: Session, symbol: str) -> dict:
             session.commit()
             session.refresh(sector)
 
-        # Stock 조회/생성
+
         stock = session.query(Stock).filter_by(symbol=symbol).first()
         if not stock:
             stock = Stock(
@@ -528,16 +518,16 @@ def insert_bulk_realtime_stocks(session: Session, symbols: List[str]) -> List[di
     results = []
     for symbol in symbols:
         try:
-            # 여기에서 float으로 변환하는 부분을 명확하게 추가할 수 있습니다.
+
             result = insert_realtime_stock(session=session, symbol=symbol)
             results.append(result)
         except Exception as e:
-            # 개별 심볼 오류는 기록하고 계속 진행
+
             results.append({"symbol": symbol, "error": str(e)})
     return results
 
 
-# services/stock_service.py
+
 def get_stocks_list(db: Session, country_id=None, market_id=None, sector_id=None):
     country_alias = aliased(Country)
     market_alias = aliased(Market)
@@ -641,7 +631,7 @@ def get_stock_by_id(db: Session, stock_id: int) -> Optional[dict]:
     market_alias = aliased(Market)
     sector_alias = aliased(Sector)
 
-    # 주식과 관련 정보 조회
+
     item = (
         db.query(
             Stock,
@@ -682,7 +672,7 @@ def delete_stock_review(db: Session, review_id: int, current_user: User):
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    # 본인 리뷰인지 체크
+
     if review.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed to delete this review")
 

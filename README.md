@@ -7,6 +7,7 @@
 
 ---
 
+
 ### 주요기능🛠️
 
 ### 1. 사용자 관리 (User) 👤
@@ -64,6 +65,12 @@
 - **API 문서화:** Swagger 
 
 ---
+## 팀원 소개 👥
+| 이름      | 역할 | 담당 |
+|---------|----|------|
+| gmansu1 | 팀장 | 프로젝트 총괄 |
+
+---
 
 ## 설치 및 실행 💻
 ```bash
@@ -73,3 +80,4 @@ python -m venv venv
 source .venv/bin/activate  # Mac/Linux
 venv\Scripts\activate     # Windows
 uvicorn main:app --reload
+

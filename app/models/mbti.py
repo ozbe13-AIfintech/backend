@@ -10,9 +10,9 @@ class MbtiQuestion(Base):
     __tablename__ = "mbti_questions"
 
     id = Column(Integer, primary_key=True, index=True)
-    dimension = Column(String(10), nullable=False)  # ex) "E/I"
-    option_a = Column(String, nullable=False)  # EX: 외향적 선택지
-    option_b = Column(String, nullable=False)  # IN: 내향적 선택지
+    dimension = Column(String(10), nullable=False)
+    option_a = Column(String, nullable=False)
+    option_b = Column(String, nullable=False)
     text = Column(String, nullable=False)
 
 

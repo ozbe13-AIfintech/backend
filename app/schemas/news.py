@@ -1,4 +1,4 @@
-# app/schemas/news.py
+
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 from datetime import datetime
@@ -10,7 +10,7 @@ class NewsBase(BaseModel):
     source: Optional[str]
     url: HttpUrl
     published_at: datetime
-    stock_symbol: Optional[str] = None  # 특정 주식 관련 뉴스일 경우
+    stock_symbol: Optional[str] = None
 
 
 class NewsCreate(NewsBase):

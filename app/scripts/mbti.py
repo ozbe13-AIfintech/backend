@@ -2,9 +2,8 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.mbti import MbtiQuestion
 
-# --- MBTI 질문 데이터 ---
+
 QUESTIONS = [
-    # --- E/I ---
     (
         "E/I",
         "너는 주식 관련 새로운 정보가 등장하면 어떤 반응을 보이냐?",
@@ -35,7 +34,7 @@ QUESTIONS = [
         "사람들 반응 보며 매매하는 게 재밌다",
         "혼자 조용히 매매하는 게 좋다",
     ),
-    # --- S/N ---
+
     (
         "S/N",
         "투자를 시작할 때 너는 무엇을 먼저 보냐?",
@@ -60,7 +59,7 @@ QUESTIONS = [
         "현실 가능한 시나리오만 믿음",
         "보이지 않는 가능성에서 기회를 찾음",
     ),
-    # --- T/F ---
+
     (
         "T/F",
         "손절에 대한 너의 감정은?",
@@ -79,7 +78,7 @@ QUESTIONS = [
         "‘왜?’ 를 찾는 타입",
         "차트 보며 ‘이 종목 불쌍하네…’ 함",
     ),
-    # --- J/P ---
+
     (
         "J/P",
         "매매 계획은 어떻게 세우는 편이냐?",
@@ -101,7 +100,7 @@ QUESTIONS = [
 ]
 
 
-# --- 질문 DB 삽입 함수 ---
+
 def seed_questions():
     db: Session = SessionLocal()
     for dimension, text, option_a, option_b in QUESTIONS:
@@ -111,7 +110,7 @@ def seed_questions():
             .first()
         )
         if exists:
-            continue  # 이미 존재하면 건너뜀
+            continue
 
         q = MbtiQuestion(
             dimension=dimension, text=text, option_a=option_a, option_b=option_b

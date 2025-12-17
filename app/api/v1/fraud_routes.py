@@ -15,7 +15,6 @@ from app.schemas.fraud import FraudLogResponse
 
 router = APIRouter()
 
-# ---------------- 배치 탐지 ----------------
 @router.post("/batch", response_model=List[FraudLogResponse])
 def batch_stock_fraud(
     stock_ids: List[int] = Body(...),
@@ -47,7 +46,7 @@ def batch_stock_fraud(
 
     return results
 
-# ---------------- 로그 조회 ----------------
+
 @router.get("/logs", response_model=List[FraudLogResponse])
 def get_fraud_logs(
     stock_id: Optional[int] = Query(None),
@@ -80,7 +79,7 @@ def get_fraud_logs(
 
     return results
 
-# ---------------- 개별 탐지 ----------------
+
 @router.get("/{stock_id}", response_model=FraudLogResponse)
 def single_stock_fraud(
     stock_id: int = Path(...),

@@ -43,7 +43,6 @@ def detect_fraud_service(
         price_change = None
         volume_change = None
 
-        # 최근 2개 가격 비교
         if len(prices) >= 2:
             last = prices[0]
             prev = prices[1]

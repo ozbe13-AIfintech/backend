@@ -1,4 +1,4 @@
-# app/scripts/news.py
+
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -21,20 +21,20 @@ def main():
 
     with SessionLocal() as db:
 
-        # ⭐ 모든 stock.symbol 가져오기
+
         symbols = [s.symbol for s in db.query(Stock).all()]
         print("검색할 종목:", symbols)
 
         total_saved = 0
 
-        # ⭐ 각 종목마다 뉴스 가져오기
+
         for sym in symbols:
             print(f"\n--- {sym} 뉴스 가져오는 중... ---")
             news_list = fetch_and_save_news(
                 db,
-                query=sym,  # <-- 핵심!
+                query=sym,
                 limit=20,
-                language="en",  # 해외 기업은 영어 뉴스가 훨씬 많음
+                language="en",
             )
             print(f"{sym}: {len(news_list)}개 저장됨")
             total_saved += len(news_list)

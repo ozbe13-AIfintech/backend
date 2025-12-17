@@ -17,9 +17,7 @@ NEWS_EVERYTHING_URL = "https://newsapi.org/v2/everything"
 KST = timezone(timedelta(hours=9))
 
 
-# -----------------------------------------
-# 기사 포맷 변환
-# -----------------------------------------
+
 def _format_article(article: dict):
     published_str = article.get("publishedAt")
 
@@ -39,9 +37,7 @@ def _format_article(article: dict):
     }
 
 
-# -----------------------------------------
-# 확장 심볼 키워드 (AI매칭 강화를 위해 추가)
-# -----------------------------------------
+
 extra_map = {
     "AAPL": [
         "apple",
@@ -59,9 +55,7 @@ extra_map = {
 }
 
 
-# -----------------------------------------
-# 확장 매칭 함수
-# -----------------------------------------
+
 def match_extra_symbol(text: str):
     text_lower = text.lower()
 
@@ -75,9 +69,6 @@ def match_extra_symbol(text: str):
     return None
 
 
-# -----------------------------------------
-# 뉴스 Fetch + DB 저장
-# -----------------------------------------
 def fetch_and_save_news(
     db: Session, query: str = None, limit: int = 10, language: str = "ko"
 ):
@@ -97,9 +88,7 @@ def fetch_and_save_news(
         "apiKey": NEWS_API_KEY,
     }
 
-    # ------------------------------
-    # API 요청
-    # ------------------------------
+
     try:
         res = requests.get(url, params=params, timeout=5)
         res.raise_for_status()
@@ -113,32 +102,24 @@ def fetch_and_save_news(
 
     saved_news = []
 
-    # ------------------------------
-    # 기존 URL (중복 방지)
-    # ------------------------------
     existing_urls = {
         row[0] for row in db.query(News.url).filter(News.url.isnot(None)).all()
     }
 
-    # ------------------------------
-    # stock 테이블 전체 조회
-    # ------------------------------
+
     stocks = db.query(Stock).all()
 
-    # -----------------------------------------
-    # 주식명 + 심볼 매칭 함수
-    # -----------------------------------------
+
     def match_stock(text: str):
         text_lower = text.lower()
 
-        # 0) 확장 키워드 먼저 매칭
+
         extra_symbol = match_extra_symbol(text_lower)
         if extra_symbol:
             for s in stocks:
                 if s.symbol.lower() == extra_symbol.lower():
                     return s.symbol, s.id
 
-        # 1) stock DB 기반 매칭
         for s in stocks:
             symbol = s.symbol.lower()
             name = s.name.lower()
@@ -146,23 +127,21 @@ def fetch_and_save_news(
             name_variants = {
                 name,
                 name.replace(" ", ""),
-                " ".join(list(name)),  # 삼성전자 → 삼 성 전 자
+                " ".join(list(name)),
             }
 
-            # 심볼 단어 매칭
+
             if re.search(rf"\b{re.escape(symbol)}\b", text_lower):
                 return s.symbol, s.id
 
-            # 이름 매칭
+
             for variant in name_variants:
                 if variant and variant in text_lower:
                     return s.symbol, s.id
 
         return None, None
 
-    # ------------------------------
-    # 새 뉴스 저장
-    # ------------------------------
+
     for article in articles:
         formatted = _format_article(article)
 
@@ -180,7 +159,7 @@ def fetch_and_save_news(
 
         combined_text = title + " " + description
 
-        # 주식 자동 매칭
+
         stock_symbol, stock_id = match_stock(combined_text)
 
         news_item = News(
@@ -196,9 +175,7 @@ def fetch_and_save_news(
         db.add(news_item)
         saved_news.append(news_item)
 
-    # ------------------------------
-    # DB commit
-    # ------------------------------
+
     if saved_news:
         try:
             db.commit()
@@ -213,9 +190,6 @@ def fetch_and_save_news(
     return saved_news
 
 
-# -----------------------------------------
-# 종목별 최근 뉴스 조회
-# -----------------------------------------
 def get_news_by_stock(db: Session, stock_symbol: str, limit: int = 10):
     stock = db.query(Stock).filter(Stock.symbol == stock_symbol).first()
     if not stock:
@@ -230,8 +204,5 @@ def get_news_by_stock(db: Session, stock_symbol: str, limit: int = 10):
     )
 
 
-# -----------------------------------------
-# 최신 뉴스 조회
-# -----------------------------------------
 def get_latest_news(db: Session, limit: int = 10):
     return db.query(News).order_by(News.published_at.desc()).limit(limit).all()

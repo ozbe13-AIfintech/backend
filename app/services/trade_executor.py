@@ -19,7 +19,7 @@ def buy_stock(db: Session, user_id: int, stock_id: int, quantity: int):
             status_code=404, detail="사용자 또는 주식이 존재하지 않습니다."
         )
 
-    # 최신 가격 조회
+
     latest_price_record = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)
@@ -36,7 +36,7 @@ def buy_stock(db: Session, user_id: int, stock_id: int, quantity: int):
         raise HTTPException(status_code=400, detail="잔액이 부족합니다.")
 
     try:
-        # 거래 기록
+
         trade = Trade(
             user_id=user_id,
             stock_id=stock_id,
@@ -47,7 +47,7 @@ def buy_stock(db: Session, user_id: int, stock_id: int, quantity: int):
         )
         db.add(trade)
 
-        # UserAsset 갱신
+
         asset = (
             db.query(UserAsset).filter_by(user_id=user_id, stock_id=stock_id).first()
         )
@@ -88,7 +88,7 @@ def sell_stock(db: Session, user_id: int, stock_id: int, quantity: int):
     if asset.quantity < quantity:
         raise HTTPException(status_code=400, detail="보유 수량이 부족합니다.")
 
-    # 최신 가격 조회
+
     latest_price_record = (
         db.query(StockPrice)
         .filter(StockPrice.stock_id == stock_id)
@@ -102,18 +102,18 @@ def sell_stock(db: Session, user_id: int, stock_id: int, quantity: int):
     total_price = price * quantity
 
     try:
-        # 거래 기록
+
         trade = Trade(
             user_id=user_id,
             stock_id=stock_id,
-            quantity=-quantity,  # 판매는 음수 수량
+            quantity=-quantity,
             price=price,
             total_price=total_price,
             created_at=datetime.utcnow(),
         )
         db.add(trade)
 
-        # UserAsset 갱신
+
         asset.quantity -= quantity
         if asset.quantity == 0:
             db.delete(asset)
@@ -141,7 +141,7 @@ def get_user_owned_stocks(db: Session, user_id: int) -> list[OwnedStockResponse]
     """
     JWT 인증된 사용자의 보유 주식 조회
     """
-    # 사용자 거래 내역에서 종목별 보유 수량과 평균 매수가 계산
+
     trades = (
         db.query(
             Trade.stock_id,
@@ -157,13 +157,13 @@ def get_user_owned_stocks(db: Session, user_id: int) -> list[OwnedStockResponse]
 
     for t in trades:
         if t.total_quantity <= 0:
-            continue  # 매도까지 고려해서 0 이하면 스킵
+            continue
 
         stock = db.query(Stock).filter(Stock.id == t.stock_id).first()
         if not stock:
             continue
 
-        # 최신 가격 조회
+
         latest_price_obj = StockPrice.get_latest_price(db, stock_id=t.stock_id)
         current_price = latest_price_obj.price if latest_price_obj else 0.0
 

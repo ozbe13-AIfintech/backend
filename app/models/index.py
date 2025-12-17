@@ -1,13 +1,11 @@
-
-
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 from sqlalchemy.sql import func
-from app.models.stock import Stock  # Stock import
+from app.models.stock import Stock
 
-# --- association table ---
+
 index_component = Table(
     "index_component",
     Base.metadata,
@@ -16,9 +14,9 @@ index_component = Table(
     Column("weight", Float),
 )
 
-# --- Index 모델 ---
+
 class Index(Base):
-    __tablename__ = "index"  # ✅ DB에 있는 이름과 매칭
+    __tablename__ = "index"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
@@ -28,13 +26,13 @@ class Index(Base):
     current_value = Column(Float, default=0.0)
     change = Column(Float, default=0.0)
 
-    # 관계
+
     values = relationship("IndexValue", back_populates="index", cascade="all, delete-orphan")
     components = relationship(
         "Stock", secondary=index_component, back_populates="indices"
     )
 
-# --- IndexValue 모델 ---
+
 class IndexValue(Base):
     __tablename__ = "index_value"
 
@@ -47,7 +45,6 @@ class IndexValue(Base):
     index = relationship("Index", back_populates="values")
 
 
-# --- Stock 모델에 relationship 추가 ---
 Stock.indices = relationship(
     "Index", secondary=index_component, back_populates="components"
 )

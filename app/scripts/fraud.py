@@ -6,7 +6,7 @@ import numpy as np
 from app.db.session import SessionLocal
 
 
-# ---------------- Fraud 계산 함수 ----------------
+
 def determine_risk_level(risk_score: float) -> str:
     if risk_score >= 80:
         return "High"
@@ -99,15 +99,15 @@ def detect_multiple_fraud_service(
     return fraud_logs
 
 
-# ---------------- 배치 실행 함수 ----------------
+
 def run_fraud_batch(user_id: int = 1):
     db: Session = SessionLocal()
     try:
-        # 모든 주식 ID 조회
+
         stock_ids = [s.id for s in db.query(Stock).all()]
         print(f"[INFO] Total stocks: {len(stock_ids)}")
 
-        # Fraud 탐지 실행
+
         fraud_logs = detect_multiple_fraud_service(db, stock_ids, user_id)
         print(f"[INFO] Fraud detection completed. Logs created: {len(fraud_logs)}")
 
@@ -125,6 +125,6 @@ def run_fraud_batch(user_id: int = 1):
         db.close()
 
 
-# ---------------- 실행 ----------------
+
 if __name__ == "__main__":
     run_fraud_batch(user_id=1)

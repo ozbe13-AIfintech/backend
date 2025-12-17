@@ -11,22 +11,30 @@ from app.models.user import UserWishlist
 
 ANT_NAMES = [
     "갈고리머리개미",
-    "곡예사개미",
+    "곡예사거미",
+    "꼬마흙개미",
+    "도둑개미",
     "모댁목수개미",
+    "미친개미",
     "병정흰개미",
-    "비시너스목수개미",
+    "아르엔티나개미",
     "펜실베니커스목수개미",
     "흰발납자루개미",
-    "미친개미",
-    "유동성개미",
+    "워렌버핏",
 ]
 
-
 def generate_nickname(db: Session) -> str:
+    base = random.choice(ANT_NAMES)
+
+    if not db.query(User).filter_by(nickname=base).first():
+        return base
+
+    idx = 1
     while True:
-        n = random.choice(ANT_NAMES)
-        if not db.query(User).filter_by(nickname=n).first():
-            return n
+        nickname = f"{base}{idx}"
+        if not db.query(User).filter_by(nickname=nickname).first():
+            return nickname
+        idx += 1
 
 
 def generate_otp() -> str:

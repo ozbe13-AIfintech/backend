@@ -23,21 +23,15 @@ NEG_EN = ["bad", "fall", "bearish", "loss", "decline", "drop", "risk", "down"]
 
 
 def analyze_sentiment(text: str) -> float:
-    """
-    한글 + 영어 뉴스 감정 분석
-    점수 범위: -1 ~ 1
-    """
     text_lower = text.lower()
     score = 0
 
-    # 한글 분석
     for word in okt.morphs(text):
         if word in POS_KO:
             score += 1
         elif word in NEG_KO:
             score -= 1
 
-    # 영어 분석
     words_en = re.findall(r"\b\w+\b", text_lower)
     for word in words_en:
         if word in POS_EN:
@@ -45,7 +39,6 @@ def analyze_sentiment(text: str) -> float:
         elif word in NEG_EN:
             score -= 1
 
-    # 정규화
     if score > 0:
         score = min(score / 5, 1)
     elif score < 0:
@@ -65,7 +58,7 @@ def fetch_news_for_stock(stock_name: str, language: str = "ko"):
         raise HTTPException(500, "Failed to fetch news")
 
     articles = res.json().get("articles", [])
-    # title + description 합쳐서 반환
+
     return [
         (a["title"] + " " + a.get("description", ""), "newsapi") for a in articles[:5]
     ]

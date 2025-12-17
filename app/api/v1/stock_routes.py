@@ -95,23 +95,22 @@ def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db
 
     results = []
     for symbol in request.symbols:
-        print(f"Request에서 받은 심볼: {symbol}")  # 디버깅 로그
-        symbol = symbol.strip().upper()  # 공백 제거하고 대문자로 변환
-        print(f"정리된 심볼: {symbol}")  # 정리된 심볼 로그
+        print(f"Request에서 받은 심볼: {symbol}")
+        symbol = symbol.strip().upper()
+        print(f"정리된 심볼: {symbol}")
 
         try:
-            # 심볼 유효성 검사
             if not symbol or symbol.lower() == "bulk":
-                print(f"유효하지 않은 심볼 발견: {symbol}")  # 유효하지 않은 심볼 로그
+                print(f"유효하지 않은 심볼 발견: {symbol}")
                 raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol}")
 
             result = insert_realtime_stock(
                 db, symbol
-            )  # 실제 주식 데이터 처리 함수 호출
+            )
             results.append(result)
 
         except Exception as e:
-            print(f"심볼 {symbol} 처리 중 오류 발생: {str(e)}")  # 오류 로그
+            print(f"심볼 {symbol} 처리 중 오류 발생: {str(e)}")
             results.append({"symbol": symbol, "error": str(e)})
 
     return {"status": "success", "results": results}
@@ -119,7 +118,7 @@ def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db
 
 @router.post("/realtime/{symbol}")
 def add_realtime_stock(symbol: str, db: Session = Depends(get_db)):
-    result = insert_realtime_stock(db, symbol.upper())  # 대문자 처리
+    result = insert_realtime_stock(db, symbol.upper())
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
@@ -127,11 +126,11 @@ def add_realtime_stock(symbol: str, db: Session = Depends(get_db)):
 
 @router.post("/realtime")
 def insert_realtime_stocks_batch(db: Session = Depends(get_db)):
-    symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]  # 예시 종목
+    symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]
     results = []
     for symbol in symbols:
         try:
-            result = insert_realtime_stock(db, symbol.upper())  # 대문자 처리
+            result = insert_realtime_stock(db, symbol.upper())
             results.append(result)
         except Exception as e:
             results.append({"symbol": symbol, "error": str(e)})

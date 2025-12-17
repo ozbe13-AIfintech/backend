@@ -1,4 +1,3 @@
-# app/api/v1/ai_trading_routes.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.services.ai_trading import (
@@ -15,7 +14,7 @@ router = APIRouter()
 @router.post("/run/", response_model=list[TradeResponse])
 def execute_ai_trading(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),  # 로그인 유저
+    current_user=Depends(get_current_user),
 ):
     return run_ai_trading_service(db, current_user.id)
 
@@ -27,7 +26,6 @@ def get_ai_trading_history(
 ):
     trades = get_ai_trading_history_service(db, current_user.id)
 
-    # Trade 모델 → TradeResponse 변환 (action 계산)
     response = [
         TradeResponse(
             id=t.id,

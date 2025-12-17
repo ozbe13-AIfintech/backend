@@ -28,12 +28,12 @@ class IndexUpdate(IndexBase):
 class IndexSchema(BaseModel):
     id: int
     name: str
-    symbol: str  # 여기에 추가
+    symbol: str
     market_id: int
-    current_value: float  # 여기에 추가
+    current_value: float
     change: float
     values: List[IndexValueSchema]
-    components: Dict  # 필요에 따라 구조 조정
+    components: Dict
 
     class MyModel(BaseModel):
         class Config:

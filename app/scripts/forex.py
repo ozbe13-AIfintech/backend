@@ -1,11 +1,11 @@
-# app/scripts/forex.py
+
 import requests
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.forex import ExchangeRate, ExchangeRateHistory
 
-# Frankfurter API 사용
+
 EXCHANGE_API_URL = "https://api.frankfurter.app/latest"
 print("EXCHANGE_API_URL =", EXCHANGE_API_URL)
 
@@ -50,7 +50,7 @@ def get_multiple_exchange_rates(base: str, targets: list, db: Session):
             )
             db.add(record)
 
-        # 히스토리 기록
+
         history = ExchangeRateHistory(
             base_currency=base.upper(), target_currency=target.upper(), rate=rate
         )

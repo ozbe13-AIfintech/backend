@@ -1,4 +1,4 @@
-# app/services/ai_trading.py
+
 from sqlalchemy.orm import Session
 from datetime import datetime
 import random
@@ -11,10 +11,7 @@ from fastapi import HTTPException
 
 
 def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
-    """
-    로그인한 사용자의 AI 자동 거래 실행
-    감성 점수가 0.2 이상이면 BUY, -0.2 이하이면 SELL, 중립은 PASS
-    """
+
     assets = db.query(UserAsset).filter(UserAsset.user_id == user_id).all()
     stocks_to_trade = [a.stock_id for a in assets] or [1, 2, 3]
 
@@ -41,7 +38,6 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
 
         total_price = price * abs(quantity)
 
-        # Trade DB 저장 (action 제거)
         trade = Trade(
             user_id=user_id,
             stock_id=stock_id,
@@ -54,7 +50,6 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
         db.commit()
         db.refresh(trade)
 
-        # UserAsset 업데이트
         asset = (
             db.query(UserAsset)
             .filter(UserAsset.user_id == user_id, UserAsset.stock_id == stock_id)
@@ -66,7 +61,7 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
             )
             db.add(asset)
 
-        if quantity > 0:  # BUY
+        if quantity > 0:
             asset.avg_price = (
                 ((asset.avg_price * asset.quantity) + total_price)
                 / (asset.quantity + quantity)
@@ -74,10 +69,10 @@ def run_ai_trading_service(db: Session, user_id: int) -> List[TradeResponse]:
                 else price
             )
             asset.quantity += quantity
-        else:  # SELL
+        else:
             asset.quantity = max(
                 asset.quantity + quantity, 0
-            )  # quantity < 0 이므로 더하기
+            )
 
         executed_trades.append(
             TradeResponse(

@@ -1,4 +1,3 @@
-# scripts/insert_indices.py
 import yfinance as yf
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -27,19 +26,18 @@ INDEX_SYMBOLS = {
 
 
 def save_index_value(db: Session, index_obj: Index, value: float):
-    # IndexValue 저장
     iv = IndexValue(
         index_id=index_obj.id,
         value=value,
         recorded_at=datetime.utcnow()
     )
     db.add(iv)
-    db.flush()  # id 가져오기 위해 flush
+    db.flush()
 
-    # 변화율 계산
+
     calculate_change_percent(db, iv)
 
-    # Index 현재값 업데이트
+
     index_obj.current_value = value
     index_obj.change = iv.change_percent
 
@@ -56,7 +54,7 @@ def fetch_and_save(db: Session, name: str, symbol: str):
 
     close_price = float(hist["Close"].iloc[-1])
 
-    # Index 생성 또는 가져오기
+
     index_obj = (
         db.query(Index).filter((Index.name == name) | (Index.symbol == symbol)).first()
     )
@@ -71,7 +69,7 @@ def fetch_and_save(db: Session, name: str, symbol: str):
         db.add(index_obj)
         db.flush()
 
-    # IndexValue 저장
+
     save_index_value(db, index_obj, close_price)
 
     print(f"[INFO] {name} 저장됨: {close_price}")
