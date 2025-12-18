@@ -1,7 +1,7 @@
 from app.models.fraud import FraudLog
 from app.models.stock import StockPrice
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import numpy as np
 
 
@@ -10,66 +10,96 @@ def determine_risk_level(risk_score: float) -> str:
         return "High"
     elif risk_score >= 40:
         return "Medium"
-    else:
-        return "Low"
+    return "Low"
 
 
-def get_fraud_logs(db: Session, stock_id: Optional[int] = None) -> List[FraudLog]:
-
+def get_fraud_logs_service(
+    db: Session, stock_id: Optional[int] = None
+) -> List[FraudLog]:
     query = db.query(FraudLog)
     if stock_id:
         query = query.filter(FraudLog.stock_id == stock_id)
-    return query.all()
+    return query.order_by(FraudLog.created_at.desc()).all()
 
 
-def detect_fraud(db: Session, stock_id: int, user_id: int) -> FraudLog:
+def detect_fraud_service(
+    db: Session, stock_id: int, user_id: int
+) -> Tuple[Optional[FraudLog], str]:
+    try:
+        prices = (
+            db.query(StockPrice)
+            .filter(StockPrice.stock_id == stock_id)
+            .order_by(StockPrice.recorded_at.desc())
+            .limit(5)
+            .all()
+        )
 
-    prices = (
-        db.query(StockPrice)
-        .filter(StockPrice.stock_id == stock_id)
-        .order_by(StockPrice.recorded_at.desc())
-        .limit(5)
-        .all()
-    )
-    if not prices:
-        return None
+        if not prices:
+            return None, "Low"
 
-    risk_score = 0
-    reason = []
+        risk_score = 0
+        reason = []
 
-    if len(prices) >= 2:
-        price_change = abs(prices[0].price - prices[1].price) / prices[1].price
-        if price_change > 0.1:
-            risk_score += 50
-            reason.append("Price spike detected")
+        price_change = None
+        volume_change = None
 
-        volume_change = (prices[0].volume or 0) - (prices[1].volume or 0)
-        if (
-            prices[1].volume and volume_change / prices[1].volume > 2
-        ):  # 거래량 2배 이상 증가
-            risk_score += 50
-            reason.append("Volume spike detected")
+        if len(prices) >= 2:
+            last = prices[0]
+            prev = prices[1]
 
-    # 평균 가격 및 평균 거래량 계산
-    average_price = np.mean([p.price for p in prices])
-    average_volume = np.mean([p.volume or 0 for p in prices])
+            if prev.price > 0:
+                price_change = abs(float(last.price) - float(prev.price)) / float(
+                    prev.price
+                )
+                price_change = float(price_change)
+                if price_change > 0.1:
+                    risk_score += 50
+                    reason.append("Price spike detected")
 
-    # 위험 수준 계산
-    risk_level = determine_risk_level(risk_score)
+            if prev.volume:
+                volume_change = (float(last.volume) - float(prev.volume)) / float(
+                    prev.volume
+                )
+                volume_change = float(volume_change)
+                if volume_change > 2:
+                    risk_score += 50
+                    reason.append("Volume spike detected")
 
-    # FraudLog 저장
-    fraud_log = FraudLog(
-        user_id=user_id,
-        stock_id=stock_id,
-        risk_score=risk_score,
-        reason=", ".join(reason) if reason else "No issues detected",
-        price_change=price_change,
-        volume_change=volume_change,
-        average_price=average_price,
-        average_volume=average_volume,
-    )
-    db.add(fraud_log)
-    db.commit()
-    db.refresh(fraud_log)
+        average_price = float(np.mean([float(p.price) for p in prices]))
+        average_volume = float(np.mean([float(p.volume) for p in prices]))
 
-    return fraud_log, risk_level
+        if not reason:
+            reason = ["No significant anomalies detected"]
+
+        fraud_log = FraudLog(
+            user_id=int(user_id),
+            stock_id=int(stock_id),
+            risk_score=float(risk_score),
+            reason=", ".join(reason),
+            price_change=price_change,
+            volume_change=volume_change,
+            average_price=average_price,
+            average_volume=average_volume,
+        )
+
+        db.add(fraud_log)
+        db.commit()
+        db.refresh(fraud_log)
+
+        return fraud_log, determine_risk_level(risk_score)
+
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] {e}")
+        return None, "Low"
+
+
+def detect_multiple_fraud_service(
+    db: Session, stock_ids: List[int], user_id: int
+) -> List[FraudLog]:
+    fraud_logs = []
+    for stock_id in stock_ids:
+        fraud_log, _ = detect_fraud_service(db, stock_id, user_id)
+        if fraud_log:
+            fraud_logs.append(fraud_log)
+    return fraud_logs

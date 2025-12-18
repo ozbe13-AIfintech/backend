@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
 
 from app.db.session import get_db
-from app.services.sentiment_service import fetch_news_for_stock, save_social_sentiment
+from app.services.sentiment_service import (
+    fetch_and_save_sentiment_service,
+    sentiment_trend_service,
+)
 
 router = APIRouter()
 
@@ -12,17 +14,9 @@ router = APIRouter()
 def fetch_and_save_sentiment(
     stock_id: int, stock_name: str, db: Session = Depends(get_db)
 ):
+    return fetch_and_save_sentiment_service(db, stock_id, stock_name)
 
-    articles = fetch_news_for_stock(stock_name)
-    saved = []
-    for content, source in articles:
-        s = save_social_sentiment(db, stock_id, content, source)
-        saved.append(
-            {
-                "id": s.id,
-                "content": s.content,
-                "source": s.source,
-                "sentiment_score": s.sentiment_score,
-            }
-        )
-    return saved
+
+@router.get("/analytics/{stock_id}")
+def sentiment_trend(stock_id: int, db: Session = Depends(get_db)):
+    return sentiment_trend_service(db, stock_id)

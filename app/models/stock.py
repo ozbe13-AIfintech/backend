@@ -11,7 +11,13 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+from sqlalchemy import BigInteger
+from app.models.news import News
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from app.models.news import News
+    from app.models.index import Index
 
 class Country(Base):
     __tablename__ = "countries"
@@ -42,6 +48,7 @@ class Sector(Base):
 
 class Stock(Base):
     __tablename__ = "stocks"
+    __allow_unmapped__ = True
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     symbol = Column(String(50), unique=True, nullable=False)
@@ -57,6 +64,10 @@ class Stock(Base):
     predictions = relationship("StockPrediction", back_populates="stock")
     reviews = relationship("StockReview", back_populates="stock")
     sentiments = relationship("SocialSentiment", back_populates="stock")
+    fraud_logs = relationship("FraudLog", back_populates="stock")
+    user_wishlist = relationship("UserWishlist", back_populates="stock")
+
+    news = relationship("News", back_populates="stock")
 
 
 class StockPrice(Base):
@@ -73,7 +84,17 @@ class StockPrice(Base):
     market_index = Column(Float)
     market_index_change = Column(Float)
     recorded_at = Column(DateTime, nullable=False)
+
     stock = relationship("Stock", back_populates="prices")
+
+    @classmethod
+    def get_latest_price(cls, db_session, stock_id: int):
+        return (
+            db_session.query(cls)
+            .filter(cls.stock_id == stock_id)
+            .order_by(cls.recorded_at.desc())
+            .first()
+        )
 
 
 class StockPrediction(Base):
@@ -91,10 +112,13 @@ class StockReview(Base):
     __tablename__ = "stock_reviews"
     id = Column(Integer, primary_key=True)
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text)
     rating = Column(Integer)
     created_at = Column(DateTime, server_default=func.now())
+
     stock = relationship("Stock", back_populates="reviews")
+    user = relationship("User", back_populates="reviews")
 
 
 class SocialSentiment(Base):
@@ -105,5 +129,8 @@ class SocialSentiment(Base):
     sentiment_score = Column(Float)
     content = Column(Text)
     recorded_at = Column(DateTime, server_default=func.now())
-
+    news_id = Column(Integer, ForeignKey("news.id"), index=True)
     stock = relationship("Stock", back_populates="sentiments")
+    news = relationship("News", back_populates="sentiments")
+    def __repr__(self):
+        return f"<SocialSentiment(stock_id={self.stock_id}, score={self.sentiment_score}, source={self.source})>"

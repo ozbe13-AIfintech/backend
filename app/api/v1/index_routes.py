@@ -1,92 +1,54 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from app.db.session import get_db
-from app.models.index import Index as IndexModel, IndexValue
-from app.schemas.index import (
-    IndexSchema,
-    IndexCreate,
-    IndexUpdate,
-    IndexValueSchema,
-    IndexGraphResponse,
-    IndexGraphComponent,
-)
+from app.schemas.index import IndexSchema, IndexCreate, IndexUpdate, IndexGraphResponse
+from app.models.index import Index
 from app.services import index as index_service
-from typing import Dict, Any
+from app.models.index import Index, IndexValue, index_component
 
 router = APIRouter()
 
 
 @router.get("/indices", response_model=List[IndexSchema])
 def list_indices(db: Session = Depends(get_db)):
-    indices = db.query(IndexModel).all()
-    result = []
-    for i in indices:
-
-        comp_query = db.execute(
-            "SELECT stock_id, weight FROM index_component WHERE index_id=:idx",
-            {"idx": i.id},
-        ).fetchall()
-        components = {c.stock_id: c.weight for c in comp_query}
-        result.append(
-            IndexSchema(
-                id=i.id,
-                name=i.name,
-                market_id=i.market_id,
-                components=components,
-                values=[],
-            )
-        )
-    return result
+    return index_service.list_indices_service(db)
 
 
 @router.get("/indices/{index_id}", response_model=IndexSchema)
 def get_index_detail(index_id: int, db: Session = Depends(get_db)):
-    idx = db.query(IndexModel).filter(IndexModel.id == index_id).first()
-    if not idx:
-        raise HTTPException(status_code=404, detail="Index not found")
-
-    comp_query = db.execute(
-        "SELECT stock_id, weight FROM index_component WHERE index_id=:idx",
-        {"idx": idx.id},
-    ).fetchall()
-    components = {c.stock_id: c.weight for c in comp_query}
-
-    values = [
-        IndexValueSchema(value=v.value, recorded_at=v.recorded_at) for v in idx.values
-    ]
-
-    return IndexSchema(
-        id=idx.id,
-        name=idx.name,
-        market_id=idx.market_id,
-        components=components,
-        values=values,
-    )
+    try:
+        return index_service.get_index_detail(db, index_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/indices", response_model=IndexSchema)
 def create_index_route(data: IndexCreate, db: Session = Depends(get_db)):
     idx = index_service.create_index(db, data.name, data.market_id, data.components)
-    return get_index_detail(idx.id, db)
+    return index_service.get_index_detail(db, idx.id)
 
 
 @router.put("/indices/{index_id}", response_model=IndexSchema)
 def update_index_route(index_id: int, data: IndexUpdate, db: Session = Depends(get_db)):
-    idx = db.query(IndexModel).filter(IndexModel.id == index_id).first()
-    if not idx:
+    idx_obj = db.query(Index).filter(Index.id == index_id).first()
+    if not idx_obj:
         raise HTTPException(status_code=404, detail="Index not found")
     idx = index_service.update_index(
-        db, idx, data.name, data.market_id, data.components
+        db, idx_obj, data.name, data.market_id, data.components
     )
-    return get_index_detail(idx.id, db)
+    return index_service.get_index_detail(db, idx.id)
 
 
 @router.delete("/indices/{index_id}", response_model=dict)
 def delete_index(index_id: int, db: Session = Depends(get_db)):
-    idx = db.query(IndexModel).filter(IndexModel.id == index_id).first()
+    idx = db.query(Index).filter(Index.id == index_id).first()
     if not idx:
         raise HTTPException(status_code=404, detail="Index not found")
+
+    # cascade=True 옵션이 없으면 IndexValue, index_component 삭제
+    db.query(IndexValue).filter(IndexValue.index_id == idx.id).delete()
+    db.execute("DELETE FROM index_component WHERE index_id=:idx", {"idx": idx.id})
     db.delete(idx)
     db.commit()
     return {"msg": "Index deleted successfully"}
@@ -94,30 +56,7 @@ def delete_index(index_id: int, db: Session = Depends(get_db)):
 
 @router.get("/indices/{index_id}/graph", response_model=IndexGraphResponse)
 def get_index_graph(index_id: int, db: Session = Depends(get_db)):
-
-    index = db.query(IndexModel).filter(IndexModel.id == index_id).first()
-    if not index:
-        raise HTTPException(status_code=404, detail="Index not found")
-
-    values = sorted(index.values, key=lambda v: v.recorded_at)
-    dates: List[str] = [v.recorded_at.isoformat() for v in values]
-    y_values: List[float] = [v.value for v in values]
-
-    comp_query = db.execute(
-        "SELECT stock_id, weight FROM index_component WHERE index_id=:idx",
-        {"idx": index.id},
-    ).fetchall()
-    comp_weights = {c.stock_id: c.weight for c in comp_query}
-
-    components: List[IndexGraphComponent] = [
-        IndexGraphComponent(id=s.id, name=s.name, weight=comp_weights.get(s.id, 0.0))
-        for s in index.components
-    ]
-
-    return IndexGraphResponse(
-        index_id=index.id,
-        index_name=index.name,
-        market_id=index.market_id,
-        graph={"dates": dates, "values": y_values},
-        components=components,
-    )
+    try:
+        return index_service.get_index_graph(db, index_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

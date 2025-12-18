@@ -1,21 +1,42 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
+
+from app.models.stock import Stock
+from app.models.stock import StockPrice
+from app.models import Stock, Country, Market, Sector
+from pydantic import BaseModel
+from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
+from app.db.seed_data import insert_realtime_stock
+from app.schemas.stock import StockGraphResponse
+
 from app.db.session import get_db
-from app.models.stock import Stock, StockReview
-from app.models.user import User
 from app.schemas.stock import (
     CountryResponse,
     MarketResponse,
     SectorResponse,
     StockResponse,
     StockReviewResponse,
-    SocialSentimentResponse,
     StockSchema,
     StockReviewCreate,
+    StockPriceResponse,
+    StockPredictionResponse,
+    StockDetailResponse,
 )
 from app.services import stock
 from app.core.security import get_current_user
+from app.models.user import User
+from app.services.stock import (
+    insert_realtime_stock,
+    get_stock_reviews,
+    create_stock_review,
+    get_filtered_stocks,
+    delete_stock_review
+)
+from app.models.stock import StockReview
+from typing import Optional, List
+from datetime import datetime
 
 router = APIRouter()
 
@@ -23,6 +44,10 @@ router = APIRouter()
 @router.get("/countries", response_model=List[CountryResponse])
 def list_countries(db: Session = Depends(get_db)):
     return stock.get_countries(db)
+
+
+class SymbolsRequest(BaseModel):
+    symbols: List[str]
 
 
 @router.get("/markets", response_model=List[MarketResponse])
@@ -35,86 +60,175 @@ def list_sectors(db: Session = Depends(get_db)):
     return stock.get_sectors(db)
 
 
-@router.get("/", response_model=List[StockResponse])
+@router.get("/{stock_id}/graph", response_model=StockGraphResponse)
+def stock_graph_data(
+    stock_id: int, db: Session = Depends(get_db), limit: int = Query(50, gt=0)
+):
+    """
+    특정 주식의 가격 데이터 그래프 반환.
+    서비스에서 ApexCharts용 구조(candle, volume, ma5, ma10) 반환
+    """
+    return stock.get_stock_graph(db, stock_id, limit=limit)
+
+
+@router.get("/{stock_id}/predict")
+def stock_predict_get(stock_id: int, db: Session = Depends(get_db)):
+
+    return stock.predict_stock(db, stock_id, use_post=False)
+
+
+@router.post("/{stock_id}/predict")
+def stock_predict_post(stock_id: int, db: Session = Depends(get_db)):
+
+    return stock.predict_stock(db, stock_id, use_post=True)
+
+@router.get("/top_gainers")
+def top_gainers(limit: int = Query(10, gt=0), db: Session = Depends(get_db)):
+    return stock.get_top_gainers(db, limit=limit)
+
+    return stock.create_review(db, stock_id, data, current_user)
+
+
+@router.post("/realtime/bulk")
+def insert_realtime_stocks(request: SymbolsRequest, db: Session = Depends(get_db)):
+    if not request.symbols:
+        raise HTTPException(status_code=400, detail="symbols 리스트가 비어있습니다.")
+
+    results = []
+    for symbol in request.symbols:
+        print(f"Request에서 받은 심볼: {symbol}")
+        symbol = symbol.strip().upper()
+        print(f"정리된 심볼: {symbol}")
+
+        try:
+            if not symbol or symbol.lower() == "bulk":
+                print(f"유효하지 않은 심볼 발견: {symbol}")
+                raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol}")
+
+            result = insert_realtime_stock(
+                db, symbol
+            )
+            results.append(result)
+
+        except Exception as e:
+            print(f"심볼 {symbol} 처리 중 오류 발생: {str(e)}")
+            results.append({"symbol": symbol, "error": str(e)})
+
+    return {"status": "success", "results": results}
+
+
+@router.post("/realtime/{symbol}")
+def add_realtime_stock(symbol: str, db: Session = Depends(get_db)):
+    result = insert_realtime_stock(db, symbol.upper())
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@router.post("/realtime")
+def insert_realtime_stocks_batch(db: Session = Depends(get_db)):
+    symbols = ["AAPL", "MSFT", "GOOG", "TSLA", "AMZN"]
+    results = []
+    for symbol in symbols:
+        try:
+            result = insert_realtime_stock(db, symbol.upper())
+            results.append(result)
+        except Exception as e:
+            results.append({"symbol": symbol, "error": str(e)})
+    return {"status": "success", "results": results}
+
+
+@router.get("/", response_model=List[StockDetailResponse])
 def list_stocks(
     country_id: Optional[int] = Query(None),
     market_id: Optional[int] = Query(None),
     sector_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
-    return stock.get_stocks(db, country_id, market_id, sector_id)
+    stocks_data = get_filtered_stocks(db, country_id, market_id, sector_id)
+    return [
+        StockDetailResponse(
+            id=item["stock"].id,
+            name=item["stock"].name,
+            symbol=item["stock"].symbol,
+            country=item["country"],
+            market=item["market"],
+            sector=item["sector"],
+            price=item["latest_price"].price if item["latest_price"] else None,
+            volume=item["latest_price"].volume if item["latest_price"] else None,
+            recorded_at=(
+                item["latest_price"].recorded_at if item["latest_price"] else None
+            ),
+        )
+        for item in stocks_data
+    ]
 
 
-@router.get("/{stock_id}/graph")
-def stock_graph_data(stock_id: int, db: Session = Depends(get_db)):
+@router.get("/stocks", response_model=List[StockDetailResponse])
+def get_stocks(
+    country_id: Optional[int] = None,
+    market_id: Optional[int] = None,
+    sector_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    stocks_data = stock.get_stocks_list(db, country_id, market_id, sector_id)
+    return [
+        StockDetailResponse(
+            id=item["stock"].id,
+            name=item["stock"].name,
+            symbol=item["stock"].symbol,
+            country=item["country"],
+            market=item["market"],
+            sector=item["sector"],
+            price=item["latest_price"].price if item["latest_price"] else None,
+            volume=item["latest_price"].volume if item["latest_price"] else None,
+            recorded_at=(
+                item["latest_price"].recorded_at if item["latest_price"] else None
+            ),
+        )
+        for item in stocks_data
+    ]
 
-    prices = stock.get_stock_prices(db, stock_id)
-    if not prices:
-        raise HTTPException(status_code=404, detail="Stock prices not found")
 
-    graph_data = {
-        "dates": [p.recorded_at.isoformat() for p in prices],
-        "prices": [p.price for p in prices],
-        "open": [p.open for p in prices],
-        "high": [p.high for p in prices],
-        "low": [p.low for p in prices],
-        "close": [p.close for p in prices],
-        "volume": [p.volume for p in prices],
-        "market_cap": [p.market_cap for p in prices],
-        "market_index": [p.market_index for p in prices],
-        "market_index_change": [p.market_index_change for p in prices],
-    }
+@router.get("/stocks/{stock_id}", response_model=StockDetailResponse)
+def get_stock_detail(stock_id: int, db: Session = Depends(get_db)):
+    item = stock.get_stock_by_id(db, stock_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Stock not found")
 
-    return graph_data
+    latest_price = item.get("latest_price")
 
-
-@router.get("/{stock_id}/predict")
-def stock_predict(stock_id: int, db: Session = Depends(get_db)):
-    result = stock.predict_stock(db, stock_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Not enough data for prediction")
-    return result
+    return StockDetailResponse(
+        id=item["stock"].id,
+        name=item["stock"].name,
+        symbol=item["stock"].symbol,
+        country=item["country"],
+        market=item["market"],
+        sector=item["sector"],
+        price=latest_price.price if latest_price else None,
+        volume=latest_price.volume if latest_price else None,
+        recorded_at=latest_price.recorded_at if latest_price else None,
+    )
 
 
 @router.get("/{stock_id}/reviews", response_model=List[StockReviewResponse])
-def get_stock_reviews(stock_id: int, db: Session = Depends(get_db)):
-    reviews = db.query(StockReview).filter(StockReview.stock_id == stock_id).all()
-    if not reviews:
-        raise HTTPException(status_code=404, detail="No reviews found")
-    return reviews
+def read_reviews(stock_id: int, db: Session = Depends(get_db)):
+    return get_stock_reviews(db, stock_id)
 
 
 @router.post("/{stock_id}/reviews", response_model=StockReviewResponse)
-def create_stock_review(
+def post_review(
     stock_id: int,
     data: StockReviewCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stock_obj = db.query(Stock).filter(Stock.id == stock_id).first()
-    if not stock_obj:
-        raise HTTPException(status_code=404, detail="Stock not found")
+    return create_stock_review(db, stock_id, data, current_user)
 
-    review = StockReview(stock_id=stock_id, content=data.content, rating=data.rating)
-    db.add(review)
-    db.commit()
-    db.refresh(review)
-    return review
-
-
-@router.get("/{stock_id}/related_news", response_model=List[SocialSentimentResponse])
-def related_news(stock_id: int, db: Session = Depends(get_db)):
-    news = stock.get_social_sentiments(db, stock_id)
-    if not news:
-        raise HTTPException(status_code=404, detail="No related news found")
-    return news
-
-
-@router.get("/search", response_model=List[StockSchema])
-def search_stocks(query: str = Query(..., min_length=1), db: Session = Depends(get_db)):
-    results = (
-        db.query(stock)
-        .filter((stock.name.ilike(f"%{query}%")) | (stock.ticker.ilike(f"%{query}%")))
-        .all()
-    )
-    return results
+@router.delete("/stocks/reviews/{review_id}")
+def delete_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return delete_stock_review(db, review_id, current_user)

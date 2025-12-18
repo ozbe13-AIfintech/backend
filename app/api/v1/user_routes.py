@@ -11,11 +11,12 @@ from app.schemas.user import (
     TokenResponse,
     MessageResponse,
     WishlistResponse,
+    WishlistAddRequest,
 )
-from app.models.user import User, UserWishlist
-from app.core import security
+from app.models.user import User
+from app.services.user_service import get_wishlist_status, toggle_wishlist
 from app.services import user_service
-from app.services.user_service import add_wishlist
+
 from app.schemas.user import UserUpdateRequest
 from fastapi import Security
 
@@ -25,48 +26,37 @@ router = APIRouter()
 
 @router.post("/signup", response_model=UserResponse)
 def signup(data: SignupRequest, db: Session = Depends(get_db)):
-    if data.password != data.password_confirm:
-        raise HTTPException(400, "Passwords do not match")
-    if db.query(User).filter_by(phone=data.phone).first():
-        raise HTTPException(400, "Phone already registered")
-    u = User(
-        phone=data.phone,
-        hashed_password=security.hash_password(data.password),
-        nickname=user_service.generate_nickname(db),
-    )
-    db.add(u)
-    db.commit()
-    db.refresh(u)
-    return UserResponse(id=u.id, nickname=u.nickname, phone=u.phone)
+    user = user_service.signup(db, data)
+    return UserResponse(id=user.id, nickname=user.nickname, phone=user.phone)
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
-    u = db.query(User).filter_by(phone=data.phone).first()
-    if not u or not security.verify_password(data.password, u.hashed_password):
-        raise HTTPException(401, "Invalid credentials")
-    token = security.create_jwt(u.id)
-    return TokenResponse(token=token, nickname=u.nickname)
+
+    login_response = user_service.login(db, data)
+
+    access_token = login_response.get("access_token")
+    refresh_token = login_response.get("refresh_token")
+    nickname = login_response.get("nickname")
+    user_id = login_response.get("user_id")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        nickname=nickname,
+        user_id=user_id,
+    )
 
 
 @router.post("/{user_id}/send_otp", response_model=MessageResponse)
 def send_otp(user_id: int, db: Session = Depends(get_db)):
-    u = db.query(User).filter_by(id=user_id).first()
-    if not u:
-        raise HTTPException(404, "User not found")
-    user_service.send_otp(u, db)
+    user_service.send_otp(db, user_id)
     return MessageResponse(msg="OTP sent")
 
 
 @router.post("/{user_id}/verify_otp", response_model=MessageResponse)
 def verify_otp(user_id: int, data: OTPVerifyRequest, db: Session = Depends(get_db)):
-    u = db.query(User).filter_by(id=user_id).first()
-    if not u or not u.identity_verification:
-        raise HTTPException(404, "OTP not found")
-    try:
-        user_service.verify_otp(u.identity_verification, data.code, db)
-    except Exception as e:
-        raise HTTPException(400, str(e))
+    user_service.verify_otp(db, user_id, data.code)
     return MessageResponse(msg="Phone verified")
 
 
@@ -74,16 +64,51 @@ def verify_otp(user_id: int, data: OTPVerifyRequest, db: Session = Depends(get_d
 def verify_identity(
     user_id: int, data: IdentityVerifyRequest, db: Session = Depends(get_db)
 ):
-    u = db.query(User).filter_by(id=user_id).first()
-    if not u:
-        raise HTTPException(404, "User not found")
-    user_service.verify_identity(u, data.real_name, data.birth_date, db)
+    user_service.verify_identity(db, user_id, data.real_name, data.birth_date)
     return MessageResponse(msg="Identity verified")
 
 
-@router.post("/wishlist")
-def add_to_wishlist(user_id: int, stock_id: int, db: Session = Depends(get_db)):
-    return add_wishlist(db, user_id, stock_id)
+@router.post("/refresh")
+def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+    return user_service.refresh_access_token(refresh_token)
+
+
+@router.get("/{user_id}", summary="Get user profile")
+def get_user_profile(user_id: int, db: Session = Depends(get_db)):
+    return user_service.get_user_profile(db, user_id)
+
+
+@router.delete("/{user_id}/wishlist/{stock_id}", summary="Remove item from wishlist")
+def remove_wishlist_item(user_id: int, stock_id: int, db: Session = Depends(get_db)):
+    return user_service.remove_wishlist_item(db, user_id, stock_id)
+
+
+@router.get("/wishlist/{user_id}/{stock_id}")
+def get_wishlist_status_route(
+    user_id: int, stock_id: int, db: Session = Depends(get_db)
+):
+    is_fav = get_wishlist_status(db, user_id, stock_id)
+    return {"is_favorite": is_fav}
+
+
+@router.post("/wishlist", response_model=WishlistResponse, summary="찜/해제 토글")
+def toggle_wishlist_route(
+    data: WishlistAddRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    body:
+    {
+        "stock_id": 1,
+        "favorite": true
+    }
+    """
+    result = user_service.toggle_wishlist(
+        db, current_user, data.stock_id, data.favorite
+    )
+    wishlist = user_service.get_wishlist(db, current_user.id)
+    return WishlistResponse(user_id=current_user.id, wishlist=wishlist)
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -93,31 +118,11 @@ def update_user_profile(
     current_user: User = Security(get_current_user),
     db: Session = Depends(get_db),
 ):
-
-    if current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="본인만 수정할 수 있습니다.")
-
-    if (
-        not current_user.identity_verification
-        or current_user.identity_verification.status != "verified"
-    ):
-        raise HTTPException(status_code=400, detail="본인 인증 후에만 수정 가능합니다.")
-
-    if data.phone:
-        current_user.phone = data.phone
-
-    db.commit()
-    db.refresh(current_user)
-
-    return UserResponse(
-        id=current_user.id, nickname=current_user.nickname, phone=current_user.phone
-    )
+    updated = user_service.update_user_profile(db, user_id, data, current_user)
+    return UserResponse(id=updated.id, nickname=updated.nickname, phone=updated.phone)
 
 
 @router.get("/{user_id}/wishlist", response_model=WishlistResponse)
 def get_user_wishlist(user_id: int, db: Session = Depends(get_db)):
-    items = db.query(UserWishlist).filter(UserWishlist.user_id == user_id).all()
-    return WishlistResponse(
-        user_id=user_id,
-        wishlist=[{"stock_id": i.stock_id, "stock_name": i.stock.name} for i in items],
-    )
+    wishlist = user_service.get_wishlist(db, user_id)
+    return WishlistResponse(user_id=user_id, wishlist=wishlist)
