@@ -1,18 +1,26 @@
+# =========================
+# Python
+# =========================
 __pycache__/
 *.py[cod]
 *$py.class
 
-venv/
-.env/
+# Virtual Environments
 .venv/
+venv/
 
+# Environment variables
+.env
 
+# =========================
+# Package managers / tools
+# =========================
 pip-log.txt
 pip-delete-this-directory.txt
+.poetry/
 
-
-.poetry
-
+# =========================
+# OS / IDE
+# =========================
 .DS_Store
-
 .idea/
