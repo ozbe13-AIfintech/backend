@@ -71,15 +71,16 @@ def stock_graph_data(
     return stock.get_stock_graph(db, stock_id, limit=limit)
 
 
-@router.get("/{stock_id}/predict", response_model=StockPredictionResponse)
+@router.get("/{stock_id}/predict")
 def stock_predict_get(stock_id: int, db: Session = Depends(get_db)):
+
     return stock.predict_stock(db, stock_id, use_post=False)
 
 
-@router.post("/{stock_id}/predict", response_model=StockPredictionResponse)
+@router.post("/{stock_id}/predict")
 def stock_predict_post(stock_id: int, db: Session = Depends(get_db)):
-    return stock.predict_stock(db, stock_id, use_post=True)
 
+    return stock.predict_stock(db, stock_id, use_post=True)
 
 @router.get("/top_gainers")
 def top_gainers(limit: int = Query(10, gt=0), db: Session = Depends(get_db)):

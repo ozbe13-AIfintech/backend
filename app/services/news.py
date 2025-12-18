@@ -1,4 +1,4 @@
-# app/services/news.py
+
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -68,7 +68,6 @@ def match_extra_symbol(text: str):
 
     return None
 
-
 def fetch_and_save_news(
     db: Session, query: str = None, limit: int = 10, language: str = "ko"
 ):
@@ -88,31 +87,37 @@ def fetch_and_save_news(
         "apiKey": NEWS_API_KEY,
     }
 
-
     try:
         res = requests.get(url, params=params, timeout=5)
+
+        if res.status_code == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="뉴스 API 요청 한도를 초과했습니다."
+            )
+
         res.raise_for_status()
+
+    except requests.Timeout:
+        raise HTTPException(status_code=504, detail="뉴스 API 응답 시간 초과")
+
     except requests.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"뉴스 API 요청 실패: {e}")
+        raise HTTPException(status_code=502, detail=f"뉴스 API 요청 실패: {e}")
 
     articles = res.json().get("articles", [])
     if not articles:
-        print(f"{search_query} ({language}) 뉴스가 없습니다.")
         return []
-
-    saved_news = []
 
     existing_urls = {
         row[0] for row in db.query(News.url).filter(News.url.isnot(None)).all()
     }
 
-
     stocks = db.query(Stock).all()
+    saved_news = []
 
-
+    # ✅ 반드시 여기 안에 있어야 함
     def match_stock(text: str):
         text_lower = text.lower()
-
 
         extra_symbol = match_extra_symbol(text_lower)
         if extra_symbol:
@@ -124,43 +129,24 @@ def fetch_and_save_news(
             symbol = s.symbol.lower()
             name = s.name.lower()
 
-            name_variants = {
-                name,
-                name.replace(" ", ""),
-                " ".join(list(name)),
-            }
-
-
             if re.search(rf"\b{re.escape(symbol)}\b", text_lower):
                 return s.symbol, s.id
 
-
-            for variant in name_variants:
-                if variant and variant in text_lower:
-                    return s.symbol, s.id
+            if name and name in text_lower:
+                return s.symbol, s.id
 
         return None, None
 
-
     for article in articles:
         formatted = _format_article(article)
-
         title = formatted.get("title") or ""
         description = formatted.get("description") or ""
         url = formatted.get("url")
 
-        if not url:
-            print("URL 없는 뉴스 스킵:", title)
+        if not url or url in existing_urls:
             continue
 
-        if url in existing_urls:
-            print("이미 DB에 있는 뉴스 스킵:", title)
-            continue
-
-        combined_text = title + " " + description
-
-
-        stock_symbol, stock_id = match_stock(combined_text)
+        stock_symbol, stock_id = match_stock(title + " " + description)
 
         news_item = News(
             title=title,
@@ -175,17 +161,12 @@ def fetch_and_save_news(
         db.add(news_item)
         saved_news.append(news_item)
 
-
     if saved_news:
         try:
             db.commit()
-            for n in saved_news:
-                db.refresh(n)
-            print(f"{len(saved_news)}개의 뉴스가 DB에 저장되었습니다.")
         except Exception as e:
             db.rollback()
-            print("DB 저장 실패:", e)
-            saved_news = []
+            raise HTTPException(500, f"DB 저장 실패: {e}")
 
     return saved_news
 

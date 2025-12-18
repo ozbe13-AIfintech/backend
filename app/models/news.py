@@ -16,6 +16,7 @@ class News(Base):
 
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=True)
     stock = relationship("Stock", back_populates="news")
+    sentiments = relationship("SocialSentiment", back_populates="news")
 
     def __repr__(self):
         return f"<News(title={self.title}, source={self.source}, published_at={self.published_at})>"

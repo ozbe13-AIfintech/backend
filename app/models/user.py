@@ -24,7 +24,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     balance = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    is_admin = Column(Boolean, default=False)
     identity_verification = relationship(
         "IdentityVerification", uselist=False, back_populates="user"
     )

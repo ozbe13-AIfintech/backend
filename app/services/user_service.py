@@ -9,6 +9,16 @@ from app.schemas.user import SignupRequest, LoginRequest, UserUpdateRequest
 from twilio.rest import Client
 from app.models.user import UserWishlist
 
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password: str):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
+
 ANT_NAMES = [
     "갈고리머리개미",
     "곡예사거미",
@@ -252,3 +262,4 @@ def remove_wishlist_item(db: Session, user_id: int, stock_id: int):
     db.delete(item)
     db.commit()
     return {"msg": "Item removed from wishlist"}
+

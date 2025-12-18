@@ -105,7 +105,7 @@ if __name__ == "__main__":
     symbols = [
 
         "AAPL","MSFT","GOOG","GOOGL","AMZN","META","NVDA","TSLA",
-        "ORCL","IBM","ADBE","INTC","AMD","QCOM","CSCO",
+        "ORCL","IBM","ADBE","INTC","AMD","QCOM","CSCO","NFLX",
 
 
         "CRWD","SNOW","PLTR","NET","MDB","DDOG",

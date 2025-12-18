@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from konlpy.tag import Okt
 import re
 from app.models.stock import SocialSentiment
-
+from app.models.news import News
 load_dotenv()
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
@@ -81,22 +81,64 @@ def save_social_sentiment(db: Session, stock_id: int, content: str, source: str)
 
     return sentiment
 
+def fetch_and_save_sentiment_service(
+    db: Session,
+    stock_id: int,
+    stock_name: str,
+):
+    news_list = (
+        db.query(News)
+        .filter(News.stock_id == stock_id)
+        .all()
+    )
 
-def fetch_and_save_sentiment_service(db: Session, stock_id: int, stock_name: str):
-    articles = fetch_news_for_stock(stock_name)
+    if not news_list:
+        raise HTTPException(
+            status_code=404,
+            detail="감정 분석할 뉴스가 없습니다."
+        )
+
     saved = []
 
-    for content, source in articles:
-        s = save_social_sentiment(db, stock_id, content, source)
-        saved.append(
-            {
-                "id": s.id,
-                "content": s.content,
-                "source": s.source,
-                "sentiment_score": s.sentiment_score,
-            }
+    for news in news_list:
+
+        exists = (
+            db.query(SocialSentiment)
+            .filter(SocialSentiment.news_id == news.id)
+            .first()
         )
-    return saved
+        if exists:
+            continue
+
+        content = (news.title or "") + " " + (news.description or "")
+        score = analyze_sentiment(content)
+
+        sentiment = SocialSentiment(
+            stock_id=stock_id,
+            news_id=news.id,
+            content=content,
+            source=news.source,
+            sentiment_score=score,
+        )
+
+        db.add(sentiment)
+        saved.append(sentiment)
+
+    if not saved:
+        return {"message": "이미 모든 뉴스가 분석되었습니다."}
+
+    try:
+        db.commit()
+        for s in saved:
+            db.refresh(s)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Sentiment 저장 실패: {e}")
+
+    return {
+        "message": "sentiment 분석 완료",
+        "count": len(saved),
+    }
 
 
 def sentiment_trend_service(db: Session, stock_id: int):

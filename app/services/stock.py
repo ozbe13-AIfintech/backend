@@ -151,33 +151,75 @@ def get_stock_graph(db: Session, stock_id: int, limit: int = 50):
 
 def llm_predict(price_list: list):
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+    if not OPENAI_API_KEY:
+        logging.error("OPENAI_API_KEY not set")
+        return None
+
     prompt = f"""
-    최근 30일의 종가 데이터:
-    {price_list}
-    다음 날 종가를 예측해 숫자만 출력.
-    """
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
-        json={
-            "model": "gpt-4.1-mini",
-            "messages": [{"role": "user", "content": prompt}],
-        },
-    )
+최근 30일의 종가 데이터:
+{price_list}
 
-    logging.debug("API Response: %s", response.json())
+다음 날 종가를 예측해 숫자만 출력.
+"""
 
-    response_json = response.json()
-
-    if "choices" not in response_json:
-        logging.error("API Response does not contain 'choices': %s", response_json)
-        return None
-    output = response_json["choices"][0]["message"]["content"]
     try:
-        return float(output.replace(",", "").replace("원", "").strip())
-    except:
-        logging.error("Error while parsing prediction output: %s", output)
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "gpt-4.1-mini",
+                "messages": [
+                    {"role": "system", "content": "너는 주가 예측 모델이다. 숫자만 출력해라."},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.2,
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        logging.exception("OpenAI request failed: %s", e)
         return None
+
+
+    if response.status_code != 200:
+        logging.warning(
+            "OpenAI API error %s: %s",
+            response.status_code,
+            response.text,
+        )
+        return None
+
+    try:
+        response_json = response.json()
+    except Exception:
+        logging.error("Failed to parse OpenAI response JSON")
+        return None
+
+    logging.debug("OpenAI API Response: %s", response_json)
+
+    if "choices" not in response_json or not response_json["choices"]:
+        logging.error("No choices in OpenAI response: %s", response_json)
+        return None
+
+    output = response_json["choices"][0]["message"]["content"]
+
+
+    try:
+        cleaned = (
+            output.replace(",", "")
+            .replace("원", "")
+            .replace("$", "")
+            .strip()
+        )
+        return float(cleaned)
+    except ValueError:
+        logging.error("Prediction parsing failed. Raw output: %s", output)
+        return None
+
 
 
 def predict_stock(db: Session, stock_id: int, use_post: bool = False):
@@ -194,24 +236,33 @@ def predict_stock(db: Session, stock_id: int, use_post: bool = False):
     price_list = [p.price for p in prices][::-1]
     prediction = llm_predict(price_list)
     if prediction is None:
-        raise HTTPException(500, "Prediction failed")
+        return {
+            "prediction": None,
+            "model_name": "openai_gpt4",
+            "confidence": 0.0,
+            "reason": "RATE_LIMIT_OR_FAILED",
+            "created_at": datetime.utcnow(),
+        }
 
     if use_post:
         stock_pred = StockPrediction(
             stock_id=stock_id,
-            predicted_price=prediction,
+            prediction=prediction,
             model_name="openai_gpt4",
-            created_at=datetime.utcnow(),
+            confidence=0.0,
         )
         db.add(stock_pred)
         db.commit()
         db.refresh(stock_pred)
 
+
     return {
         "prediction": float(prediction),
         "model_name": "openai_gpt4",
+        "confidence": 0.0,
         "created_at": datetime.utcnow(),
     }
+
 
 
 def get_top_gainers(db: Session, limit: int = 10):
@@ -321,7 +372,7 @@ def to_native(x):
         return float(x)
     elif isinstance(x, (np.int32, np.int64, np.uint32, np.uint64)):
         return int(x)
-    elif isinstance(x, np.generic):  # 나머지 numpy 스칼라
+    elif isinstance(x, np.generic):
         return x.item()
     return x
 

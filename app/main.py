@@ -17,6 +17,8 @@ from app.api.v1 import search
 from app.api.v1 import mbti
 from app.api.v1 import news
 
+
+
 load_dotenv()
 
 app = FastAPI(title="AI FinTech API")
@@ -55,6 +57,10 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(mbti.router, prefix="/api/v1/mbti", tags=["MBTI"])
 
 
+
 @app.get("/")
 def root():
     return {"message": "Hello AI FinTech!"}
+
+
+

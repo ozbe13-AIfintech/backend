@@ -12,7 +12,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 from sqlalchemy import BigInteger
-
+from app.models.news import News
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -129,8 +129,8 @@ class SocialSentiment(Base):
     sentiment_score = Column(Float)
     content = Column(Text)
     recorded_at = Column(DateTime, server_default=func.now())
-
+    news_id = Column(Integer, ForeignKey("news.id"), index=True)
     stock = relationship("Stock", back_populates="sentiments")
-
+    news = relationship("News", back_populates="sentiments")
     def __repr__(self):
         return f"<SocialSentiment(stock_id={self.stock_id}, score={self.sentiment_score}, source={self.source})>"

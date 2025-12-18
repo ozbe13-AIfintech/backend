@@ -1,4 +1,4 @@
-from app.db.base import Base  # Base = declarative_base()
+from app.db.base import Base
 from app.db.session import engine
 
 try:
